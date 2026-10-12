@@ -75,7 +75,7 @@ class AsciiSpinner(Static):
 
 class AsciiBusyScreen(ModalScreen):
     DEFAULT_CSS = """
-    AsciiBusyScreen { align: center middle; background: $background 70%; }
+    AsciiBusyScreen { align: center middle; background: $background; }
     #ascii-busy {
         width: 58;
         height: auto;

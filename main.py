@@ -78,7 +78,7 @@ def find_port(configured):
 
 class BusyScreen(ModalScreen):
     DEFAULT_CSS = """
-    BusyScreen { align: center middle; background: $background 70%; }
+    BusyScreen { align: center middle; background: $background; }
     #busy-box { width: 44; height: 9; border: heavy cyan; padding: 1 2; }
     #busy-box Static { text-align: center; height: 1; }
     #busy-box LoadingIndicator { height: 3; }
@@ -93,7 +93,7 @@ class BusyScreen(ModalScreen):
 class PortSelectModal(ModalScreen):
     """Modal enumerado para selección rápida de puerto serial filtrado por chip ESP/USB."""
     DEFAULT_CSS = """
-    PortSelectModal { align: center middle; background: $background 80%; }
+    PortSelectModal { align: center middle; background: $background; }
     #port-dialog {
         width: 76;
         height: auto;
@@ -179,7 +179,7 @@ class PortSelectModal(ModalScreen):
 class KeybindingsHelpModal(ModalScreen):
     """Modal con la lista de atajos de teclado del IDE."""
     DEFAULT_CSS = """
-    KeybindingsHelpModal { align: center middle; background: $background 80%; }
+    KeybindingsHelpModal { align: center middle; background: $background; }
     #help-dialog {
         width: 78;
         height: auto;
@@ -244,7 +244,7 @@ class KeybindingsHelpModal(ModalScreen):
 class FileNameModal(ModalScreen):
     """Modal para crear un nuevo archivo o renombrar / guardar como."""
     DEFAULT_CSS = """
-    FileNameModal { align: center middle; background: $background 80%; }
+    FileNameModal { align: center middle; background: $background; }
     #filename-dialog {
         width: 60;
         height: auto;
@@ -295,7 +295,7 @@ class FileNameModal(ModalScreen):
 class RemoteFileActionModal(ModalScreen):
     """Modal de menú contextual para archivos de la placa (abrir, renombrar, eliminar)."""
     DEFAULT_CSS = """
-    RemoteFileActionModal { align: center middle; background: $background 80%; }
+    RemoteFileActionModal { align: center middle; background: $background; }
     #remote-action-dialog {
         width: 60;
         height: auto;
@@ -346,7 +346,7 @@ class RemoteFileActionModal(ModalScreen):
 class ConfirmDeleteModal(ModalScreen):
     """Modal de confirmación para eliminar un archivo de la placa."""
     DEFAULT_CSS = """
-    ConfirmDeleteModal { align: center middle; background: $background 80%; }
+    ConfirmDeleteModal { align: center middle; background: $background; }
     #confirm-delete-dialog {
         width: 62;
         height: auto;
@@ -426,6 +426,7 @@ class ESP32TUIApp(App):
     TITLE = "ESPTUI — MicroPython IDE"
     CSS = """
     Screen { layout: vertical; }
+    ModalScreen { background: $background; }
     #workspace { height: 1fr; width: 100%; }
     #sidebar { width: 25%; height: 100%; border: solid yellow; padding: 1; }
     #editor-pane { width: 1fr; height: 100%; border: solid green; padding: 1; }
