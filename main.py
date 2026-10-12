@@ -450,14 +450,14 @@ class ESP32TUIApp(App):
     #refresh-esp32 { width: 100%; margin-top: 1; }
     """
     BINDINGS = [
-        # Navegación homogénea entre paneles
-        Binding("alt+1", "focus_panel('files')", "Archivos [Alt+1]", priority=True),
-        Binding("alt+2", "focus_panel('editor')", "Editor [Alt+2]", priority=True),
-        Binding("alt+3", "focus_panel('console')", "Consola [Alt+3]", priority=True),
-        Binding("1", "focus_panel('files')", "Archivos", priority=False),
-        Binding("2", "focus_panel('editor')", "Editor", priority=False),
-        Binding("3", "focus_panel('console')", "Consola", priority=False),
-        Binding("ctrl+c", "copy_console", "Copiar consola", priority=False),
+        # Navegación homogénea entre paneles (oculta del footer para dar más aire)
+        Binding("alt+1", "focus_panel('files')", "Archivos", priority=True, show=False),
+        Binding("alt+2", "focus_panel('editor')", "Editor", priority=True, show=False),
+        Binding("alt+3", "focus_panel('console')", "Consola", priority=True, show=False),
+        Binding("1", "focus_panel('files')", "Archivos", priority=False, show=False),
+        Binding("2", "focus_panel('editor')", "Editor", priority=False, show=False),
+        Binding("3", "focus_panel('console')", "Consola", priority=False, show=False),
+        Binding("ctrl+c", "copy_console", "Copiar consola", priority=False, show=False),
 
         # Operaciones de Archivos, Editor y Placa
         Binding("ctrl+n", "new_file", "Nuevo", priority=True),
@@ -470,13 +470,13 @@ class ESP32TUIApp(App):
 
         # Herramientas y modales
         Binding("f1", "show_help", "Ayuda", priority=True),
-        Binding("question_mark", "show_help", "Ayuda", priority=False),
+        Binding("question_mark", "show_help", "Ayuda", priority=False, show=False),
         Binding("f2", "select_port", "Puertos", priority=True),
-        Binding("ctrl+p", "select_port", "Puertos", priority=True),
+        Binding("ctrl+p", "select_port", "Puertos", priority=True, show=False),
 
         # Control de paneles y salida
-        Binding("f7", "toggle_console", "Consola", priority=True),
-        Binding("f10", "toggle_sidebar", "Archivos", priority=True),
+        Binding("f7", "toggle_console", "Consola", priority=True, show=False),
+        Binding("f10", "toggle_sidebar", "Archivos", priority=True, show=False),
         Binding("ctrl+q", "quit", "Salir", priority=True),
     ]
 
@@ -499,7 +499,7 @@ class ESP32TUIApp(App):
         yield Header()
         with Horizontal(id="workspace"):
             with Vertical(id="sidebar"):
-                yield Static("Archivos [Alt+1]", classes="title hideable")
+                yield Static("Archivos locales y placa [Alt+1]", classes="title hideable")
                 with Vertical(classes="panel-content hideable"):
                     yield DirectoryTree(str(self.user_home), id="local-files")
                     yield Button("Nuevo (Ctrl+N)", id="btn-new-file")
@@ -509,7 +509,7 @@ class ESP32TUIApp(App):
                     yield Button("Refrescar placa", id="refresh-esp32")
                 yield Static("F\nI\nL\nE\nS", classes="collapsed-label")
             with Vertical(id="editor-pane"):
-                yield Static("Editor [Alt+2]: main.py", id="editor-title", classes="title")
+                yield Static("Editor de código [Alt+2]: main.py", id="editor-title", classes="title")
                 yield TextArea.code_editor(
                     "# MicroPython\nprint('Hola ESP32')\n",
                     language="python", theme=self.config["theme"], id="code-editor",
@@ -520,7 +520,7 @@ class ESP32TUIApp(App):
                     yield Button("Subir (F6)", id="upload-btn", variant="warning")
                     yield Button("Parar (F8)", id="stop-btn", variant="error")
             with Vertical(id="console-pane"):
-                yield Static("Consola REPL [Alt+3]", classes="title hideable")
+                yield Static("Consola serial REPL [Alt+3]", classes="title hideable")
                 with Vertical(classes="panel-content hideable"):
                     yield ConsoleLog(id="serial-log", markup=False, highlight=False, max_lines=3000)
                     with Horizontal(id="console-actions"):
@@ -767,12 +767,12 @@ class ESP32TUIApp(App):
                 self.editor.load_text(body)
                 self.is_remote_file = True
                 self.current_remote_file = fname
-                self.query_one("#editor-title", Static).update(f"Editor [2] (ESP32): {fname}")
+                self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2] (ESP32): {fname}")
                 self.editor.focus()
             elif self.is_remote_file and self.current_remote_file:
-                self.query_one("#editor-title", Static).update(f"Editor [2] (ESP32): {self.current_remote_file}")
+                self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2] (ESP32): {self.current_remote_file}")
             elif not self.is_remote_file:
-                self.query_one("#editor-title", Static).update(f"Editor [2]: {self.current_file.name}")
+                self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2]: {self.current_file.name}")
             for message in messages:
                 self.serial_log.write(message)
         finally:
@@ -836,7 +836,7 @@ class ESP32TUIApp(App):
             self.current_file = path
             self.is_remote_file = False
             self.current_remote_file = None
-            self.query_one("#editor-title", Static).update(f"Editor [2]: {path.name}")
+            self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2]: {path.name}")
             self.serial_log.write(f"Abierto archivo local: {path.name}")
         except Exception as error:
             self.serial_log.write(f"Abrir archivo: {error}")
@@ -929,7 +929,7 @@ class ESP32TUIApp(App):
                 self.is_remote_file = False
                 self.current_remote_file = None
                 self.editor.load_text("# MicroPython\nprint('Nuevo script')\n")
-                self.query_one("#editor-title", Static).update(f"Editor [Alt+2]: {filename}")
+                self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2]: {filename}")
                 self.serial_log.write(f"Nuevo archivo local: {filename}")
                 self.editor.focus()
 
@@ -944,10 +944,10 @@ class ESP32TUIApp(App):
                     filename += ".py"
                 if self.is_remote_file:
                     self.current_remote_file = filename
-                    self.query_one("#editor-title", Static).update(f"Editor [Alt+2] (ESP32): {filename}")
+                    self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2] (ESP32): {filename}")
                 else:
                     self.current_file = self.current_file.parent / filename
-                    self.query_one("#editor-title", Static).update(f"Editor [Alt+2]: {filename}")
+                    self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2]: {filename}")
                 self.serial_log.write(f"Archivo activo ahora es: {filename}")
                 self.editor.focus()
 

@@ -105,7 +105,7 @@ class TerminalIDE(base.ESP32TUIApp):
 
     def on_mount(self):
         super().on_mount()
-        self.query_one("#editor-title", Static).update("Editor [Alt+2]: sketch.py")
+        self.query_one("#editor-title", Static).update("Editor de código [Alt+2]: sketch.py")
 
     def get_busy_screen(self):
         return AsciiBusyScreen()
