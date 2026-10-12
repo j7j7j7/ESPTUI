@@ -6,6 +6,7 @@ navegación homogénea de paneles y edición de archivos locales y remotos.
 """
 
 import json
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -218,6 +219,7 @@ class KeybindingsHelpModal(ModalScreen):
   [b yellow]F4[/]            Renombrar archivo seleccionado en la placa
 
 [b cyan]Herramientas y Vistas:[/]
+  [b yellow]Ctrl+C[/]        [b green]Copiar[/] selección o registro de la consola al portapapeles
   [b yellow]F1[/] o [b yellow]?[/]        Mostrar esta ventana de ayuda y atajos
   [b yellow]F2[/] o [b yellow]Ctrl+P[/]   Selector rápido de puertos seriales
   [b yellow]F7[/]            Colapsar / expandir consola REPL
@@ -393,6 +395,33 @@ class RemoteFileItem(ListItem):
             self.app.action_remote_file_context(self.filename)
 
 
+def copy_text_to_system_clipboard(app, text: str) -> bool:
+    """Copia texto al portapapeles del sistema (Textual copy, wl-copy, xclip)."""
+    if not text:
+        return False
+    try:
+        app.copy_to_clipboard(text)
+    except Exception:
+        pass
+    for cmd in (["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"]):
+        if shutil.which(cmd[0]):
+            try:
+                subprocess.run(cmd, input=text.encode("utf-8"), check=True, timeout=2)
+                break
+            except Exception:
+                pass
+    return True
+
+
+class ConsoleLog(RichLog):
+    """Consola con soporte de selección, copiado al portapapeles y clic derecho."""
+    def on_mouse_down(self, event: events.MouseDown):
+        if event.button == 3:
+            event.stop()
+            event.prevent_default()
+            self.app.action_copy_console()
+
+
 class ESP32TUIApp(App):
     TITLE = "ESPTUI — MicroPython IDE"
     CSS = """
@@ -413,6 +442,8 @@ class ESP32TUIApp(App):
     #esp32-files { height: 1fr; border: solid magenta; margin-top: 1; }
     #code-editor { height: 1fr; border: heavy gray; }
     #serial-log { height: 1fr; border: heavy gray; }
+    #console-actions { height: 3; margin-top: 1; }
+    #console-actions Button { width: 1fr; min-width: 0; margin: 0 1; }
     #serial-input { height: 3; margin-top: 1; }
     #editor-buttons { height: 3; margin-top: 1; }
     #editor-buttons Button { width: 1fr; min-width: 0; margin: 0 1; }
@@ -426,6 +457,7 @@ class ESP32TUIApp(App):
         Binding("1", "focus_panel('files')", "Archivos", priority=False),
         Binding("2", "focus_panel('editor')", "Editor", priority=False),
         Binding("3", "focus_panel('console')", "Consola", priority=False),
+        Binding("ctrl+c", "copy_console", "Copiar consola", priority=False),
 
         # Operaciones de Archivos, Editor y Placa
         Binding("ctrl+n", "new_file", "Nuevo", priority=True),
@@ -490,14 +522,17 @@ class ESP32TUIApp(App):
             with Vertical(id="console-pane"):
                 yield Static("Consola REPL [Alt+3]", classes="title hideable")
                 with Vertical(classes="panel-content hideable"):
-                    yield RichLog(id="serial-log", markup=False, highlight=False, max_lines=3000)
+                    yield ConsoleLog(id="serial-log", markup=False, highlight=False, max_lines=3000)
+                    with Horizontal(id="console-actions"):
+                        yield Button("Copiar (Ctrl+C)", id="btn-copy-console")
+                        yield Button("Limpiar", id="btn-clear-console")
                     yield Input(placeholder="Comando REPL...", id="serial-input")
                 yield Static("R\nE\nP\nL", classes="collapsed-label")
         yield Footer()
 
     def on_mount(self):
         self.editor = self.query_one("#code-editor", TextArea)
-        self.serial_log = self.query_one("#serial-log", RichLog)
+        self.serial_log = self.query_one("#serial-log", ConsoleLog)
         self.remote_files = self.query_one("#esp32-files", ListView)
 
         # Si se especificó un puerto estático en config distinto a AUTO, conectar directo
@@ -918,6 +953,21 @@ class ESP32TUIApp(App):
 
         self.push_screen(FileNameModal(title="Renombrar / Guardar Como", default_name=current_name), on_name_entered)
 
+    def action_copy_console(self):
+        """Copia la selección del usuario o todo el registro de la consola al portapapeles."""
+        selected = self.screen.get_selected_text()
+        if selected:
+            copy_text_to_system_clipboard(self, selected)
+            self.serial_log.write("[PORTAPAPELES] Texto seleccionado copiado.")
+        else:
+            lines = [str(getattr(l, "text", l)) for l in self.serial_log.lines]
+            text = "\n".join(lines).strip()
+            if text:
+                copy_text_to_system_clipboard(self, text)
+                self.serial_log.write("[PORTAPAPELES] Consola copiada al portapapeles.")
+            else:
+                self.serial_log.write("[PORTAPAPELES] No hay texto para copiar.")
+
     def on_button_pressed(self, event: Button.Pressed):
         actions = {
             "save-btn": self.action_save_file,
@@ -927,6 +977,8 @@ class ESP32TUIApp(App):
             "refresh-esp32": lambda: self.start_board_task("list"),
             "btn-new-file": self.action_new_file,
             "btn-rename-file": self.action_rename_file,
+            "btn-copy-console": self.action_copy_console,
+            "btn-clear-console": self.serial_log.clear,
         }
         action = actions.get(event.button.id)
         if action:

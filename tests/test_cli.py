@@ -124,6 +124,16 @@ class UITests(unittest.IsolatedAsyncioTestCase):
                     remote_item.on_mouse_down(fake_mouse)
                     mock_context.assert_called_with("test.py")
 
+                # Prueba de copiado de consola
+                from main import copy_text_to_system_clipboard
+                app.serial_log.write("Traceback (most recent call last):")
+                await pilot.pause()
+                with patch("main.copy_text_to_system_clipboard") as mock_clipboard:
+                    app.action_copy_console()
+                    self.assertTrue(mock_clipboard.called)
+                    copied_text = mock_clipboard.call_args[0][1]
+                    self.assertIn("Traceback", copied_text)
+
 
 if __name__ == "__main__":
     unittest.main()

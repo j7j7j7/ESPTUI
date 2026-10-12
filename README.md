@@ -114,6 +114,7 @@ El tema corresponde al editor, no necesariamente al tema general de Textual. La 
 | `F6` | **Subir** archivo actual a la placa (`ampy put`) |
 | `F8` | **Parar** toda ejecución (Interrupción doble Ctrl+C en placa) |
 | `F9` | **Reiniciar** placa (Soft reset con Ctrl+D) |
+| `Ctrl+C` | **Copiar** texto seleccionado o todo el registro de la consola al portapapeles |
 | `F1` / `?` | Abrir ventana de ayuda y atajos |
 | `F2` / `Ctrl+P` | Selector rápido de puertos seriales filtrados |
 | `F7` | Colapsar / expandir consola REPL |

@@ -39,6 +39,7 @@ Atajos homogéneos y coherentes:
 - `F6`: Subir archivo a la memoria flash de la placa (`ampy put`).
 - `F8`: Parar toda ejecución activa (interrupción doble Ctrl+C en placa).
 - `F9`: Reinicio suave de la placa (Ctrl+D).
+- `Ctrl+C`: Copiar selección o registro de consola al portapapeles.
 - `F1` / `?`: Modal informativo con listado completo de atajos de teclado.
 - `F2` / `Ctrl+P`: Modal de selección rápida de puertos seriales con filtro tipo grep.
 - `F7`: Colapsar / expandir consola REPL.
