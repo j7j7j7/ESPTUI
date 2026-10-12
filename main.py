@@ -513,10 +513,17 @@ class ESP32TUIApp(App):
             try:
                 with self.serial_lock:
                     if self.ser and self.ser.is_open:
-                        data = self.ser.read(min(self.ser.in_waiting or 1, 4096))
-            except serial.SerialException as error:
+                        in_waiting = 0
+                        try:
+                            in_waiting = self.ser.in_waiting or 1
+                        except Exception:
+                            in_waiting = 1
+                        data = self.ser.read(min(in_waiting, 4096))
+            except (serial.SerialException, OSError) as error:
                 self.log_from_thread(f"Lectura serial: {error}")
                 self.stopping.wait(0.5)
+            except Exception as error:
+                self.stopping.wait(0.2)
             if data:
                 self.log_from_thread(data.decode("utf-8", errors="replace").rstrip("\r\n"))
             self.stopping.wait(0.02)
@@ -689,7 +696,8 @@ class ESP32TUIApp(App):
         if event.list_view.id == "esp32-files" and event.item:
             labels = event.item.query(Label)
             if labels:
-                target_file = str(labels.first().renderable).strip()
+                lbl = labels.first()
+                target_file = str(lbl.render()).strip()
                 if target_file:
                     self.serial_log.write(f"Cargando archivo de la placa: {target_file}...")
                     self.start_board_task("get", remote_filename=target_file)

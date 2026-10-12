@@ -77,6 +77,16 @@ class UITests(unittest.IsolatedAsyncioTestCase):
                 await pilot.pause()
                 self.assertTrue(app.query_one("#serial-input").has_focus)
 
+                # Prueba de seleccion de archivo remoto en esp32-files
+                from textual.widgets import ListItem, Label
+                item = ListItem(Label("boot.py"))
+                await app.remote_files.append(item)
+                await pilot.pause()
+                fake_event = type("FakeSelected", (), {"list_view": app.remote_files, "item": item})()
+                with patch.object(app, "start_board_task") as mock_board_task:
+                    app.on_list_view_selected(fake_event)
+                    mock_board_task.assert_called_with("get", remote_filename="boot.py")
+
 
 if __name__ == "__main__":
     unittest.main()
