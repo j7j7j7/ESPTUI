@@ -61,19 +61,21 @@ step() {
     fi
 }
 ref=${TUIESP32_REF:-main}
-if ! step "Descargando TUIESP32" fetch "https://api.github.com/repos/j7j7j7/TUIESP32/zipball/$ref" "$work/source.zip"; then
-    echo "El repositorio privado requiere GITHUB_TOKEN con acceso de lectura. No pongas tokens en URLs." >&2
-    exit 1
+if ! step "Descargando TUIESP32" fetch "https://github.com/j7j7j7/TUIESP32/archive/refs/heads/$ref.tar.gz" "$work/source.tar.gz"; then
+    if ! step "Descargando TUIESP32 (fallback)" fetch "https://api.github.com/repos/j7j7j7/TUIESP32/zipball/$ref" "$work/source.tar.gz"; then
+        echo "No se pudo descargar el repositorio TUIESP32." >&2
+        exit 1
+    fi
 fi
 if command -v uv >/dev/null 2>&1; then
     uv_bin=$(command -v uv)
 else
-    step "Descargando instalador de uv" fetch "https://astral.sh/uv/0.13.0/install.sh" "$work/uv.sh"
+    step "Descargando instalador de uv" fetch "https://astral.sh/uv/install.sh" "$work/uv.sh"
     step "Instalando uv" env UV_INSTALL_DIR="$HOME/.local/bin" sh "$work/uv.sh"
     uv_bin="$HOME/.local/bin/uv"
 fi
 # Habilita descargas por entorno sin enviar un argumento CLI no soportado.
-step "Preparando Python y dependencias" env UV_PYTHON_DOWNLOADS=automatic "$uv_bin" tool install --python 3.12 --force --reinstall "$work/source.zip"
+step "Preparando Python y dependencias" env UV_PYTHON_DOWNLOADS=automatic "$uv_bin" tool install --python 3.12 --force --reinstall "$work/source.tar.gz"
 step "Configurando PATH" "$uv_bin" tool update-shell
 bin_dir=$("$uv_bin" tool dir --bin)
 "$bin_dir/tuiesp32" --version
