@@ -460,7 +460,7 @@ class ESP32TUIApp(App):
         Binding("ctrl+c", "copy_console", "Copiar consola", priority=False, show=False),
 
         # Operaciones de Archivos, Editor y Placa
-        Binding("ctrl+n", "new_file", "Nuevo", priority=True),
+        Binding("ctrl+n", "new_file", "Crear archivo", priority=True),
         Binding("f4", "rename_file", "Renombrar", priority=True),
         Binding("ctrl+s", "save_file", "Guardar", priority=True),
         Binding("f5", "run_code", "Ejecutar", priority=True),
@@ -502,8 +502,6 @@ class ESP32TUIApp(App):
                 yield Static("Archivos locales y placa [Alt+1]", classes="title hideable")
                 with Vertical(classes="panel-content hideable"):
                     yield DirectoryTree(str(self.user_home), id="local-files")
-                    yield Button("Nuevo (Ctrl+N)", id="btn-new-file")
-                    yield Button("Renombrar (F4)", id="btn-rename-file")
                     yield Static("ESP32: sin conectar", id="board-title", classes="title")
                     yield ListView(id="esp32-files")
                     yield Button("Refrescar placa", id="refresh-esp32")
