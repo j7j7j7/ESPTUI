@@ -62,14 +62,30 @@ class AsciiSpinner(Static):
 class AsciiBusyScreen(ModalScreen):
     DEFAULT_CSS = """
     AsciiBusyScreen { align: center middle; background: $background 70%; }
-    #ascii-busy { width: 50; height: 12; border: heavy cyan; padding: 1 2; }
-    #ascii-busy Static { height: auto; text-align: center; }
-    #ascii-spinner { margin-top: 1; text-align: center; }
+    #ascii-busy {
+        width: 58;
+        height: auto;
+        border: heavy cyan;
+        background: $surface;
+        padding: 1 3;
+        align: center middle;
+    }
+    #modal-logo {
+        width: 45;
+        height: 6;
+        color: cyan;
+    }
+    #ascii-spinner {
+        margin-top: 1;
+        width: 100%;
+        text-align: center;
+        color: yellow;
+    }
     """
 
     def compose(self) -> ComposeResult:
         with Vertical(id="ascii-busy"):
-            yield Static(LOGO, markup=False)
+            yield Static(LOGO, id="modal-logo", markup=False)
             yield AsciiSpinner(id="ascii-spinner", markup=False)
 
 
