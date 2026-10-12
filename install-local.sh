@@ -19,12 +19,12 @@ for required in pyproject.toml main.py tuiesp32.py README.md; do
 done
 # El delimitador entre comillas conserva literalmente el logo ASCII.
 cat <<'LOGO'
-+--------------------------------------+
-|  T U I E S P 3 2                     |
-|       .----------------.             |
-|   ----| ESP32 / Python |----         |
-|       '----------------'             |
-+--------------------------------------+
+███████╗███████╗██████╗ ████████╗██╗   ██╗██╗
+██╔════╝██╔════╝██╔══██╗╚══██╔══╝██║   ██║██║
+█████╗  ███████╗██████╔╝   ██║   ██║   ██║██║
+██╔══╝  ╚════██║██╔═══╝    ██║   ██║   ██║██║
+███████╗███████║██║        ██║   ╚██████╔╝██║
+╚══════╝╚══════╝╚═╝        ╚═╝    ╚═════╝ ╚═╝
 LOGO
 # Crea una carpeta temporal privada para descargas y registros.
 work=$(mktemp -d)

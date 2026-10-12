@@ -1,4 +1,4 @@
-"""Installed CLI; the existing main.py remains the reusable TUI base."""
+"""Installed CLI (tuiesp32); main.py remains the reusable TUI base."""
 import argparse
 import json
 import subprocess
@@ -14,13 +14,13 @@ from textual.widgets import Static
 import serial.tools.list_ports
 import main as base
 
-VERSION = "0.1.0"
-LOGO = r"""+--------------------------------------+
-|  T U I E S P 3 2                     |
-|       .----------------.             |
-|   ----| ESP32 / Python |----         |
-|       '----------------'             |
-+--------------------------------------+"""
+VERSION = "0.2.0"
+LOGO = r"""███████╗███████╗██████╗ ████████╗██╗   ██╗██╗
+██╔════╝██╔════╝██╔══██╗╚══██╔══╝██║   ██║██║
+█████╗  ███████╗██████╔╝   ██║   ██║   ██║██║
+██╔══╝  ╚════██║██╔═══╝    ██║   ██║   ██║██║
+███████╗███████║██║        ██║   ╚██████╔╝██║
+╚══════╝╚══════╝╚═╝        ╚═╝    ╚═════╝ ╚═╝"""
 DEFAULTS = {"port": "AUTO", "baudrate": 115200, "theme": "monokai"}
 
 
@@ -62,8 +62,8 @@ class AsciiSpinner(Static):
 class AsciiBusyScreen(ModalScreen):
     DEFAULT_CSS = """
     AsciiBusyScreen { align: center middle; background: $background 70%; }
-    #ascii-busy { width: 46; height: 12; border: heavy cyan; padding: 1 2; }
-    #ascii-busy Static { height: auto; }
+    #ascii-busy { width: 50; height: 12; border: heavy cyan; padding: 1 2; }
+    #ascii-busy Static { height: auto; text-align: center; }
     #ascii-spinner { margin-top: 1; text-align: center; }
     """
 
@@ -74,33 +74,24 @@ class AsciiBusyScreen(ModalScreen):
 
 
 class TerminalIDE(base.ESP32TUIApp):
-    CSS = base.ESP32TUIApp.CSS + "\n#ascii-logo { height: 6; color: cyan; }\n"
+    # Sin dibujo de placa en el layout principal para maximizar el área de trabajo
+    CSS = base.ESP32TUIApp.CSS
 
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.current_file = Path.cwd() / "sketch.py"
+        self.current_file = self.user_home / "sketch.py"
 
     def compose(self):
-        yield Static(LOGO, id="ascii-logo", markup=False)
+        # Omitimos el banner estático superior para dejar todo el alto al workspace
         yield from super().compose()
 
     def on_mount(self):
         super().on_mount()
-        self.query_one("#editor-title", Static).update("Editor: sketch.py")
+        self.query_one("#editor-title", Static).update("Editor [2]: sketch.py")
 
-    def start_board_task(self, operation):
-        if self.busy:
-            self.serial_log.write("Espera a que termine la operacion actual.")
-            return
-        if not self.port:
-            self.serial_log.write("Configura un puerto y reinicia la aplicacion.")
-            return
-        self.busy = True
-        content, filename = self.editor.text, self.current_file.name
-        self.push_screen(AsciiBusyScreen())
-        threading.Thread(target=self.board_task,
-                         args=(operation, content, filename), daemon=True).start()
+    def get_busy_screen(self):
+        return AsciiBusyScreen()
 
     def ampy(self, *args):
         result = subprocess.run(
@@ -110,12 +101,12 @@ class TerminalIDE(base.ESP32TUIApp):
         )
         if result.returncode:
             raise RuntimeError(result.stderr.strip() or result.stdout.strip()
-                               or f"ampy termino con codigo {result.returncode}")
+                                or f"ampy termino con codigo {result.returncode}")
         return result.stdout
 
 
 def main():
-    parser = argparse.ArgumentParser(description="ESP32 MicroPython terminal IDE")
+    parser = argparse.ArgumentParser(description="ESP32 MicroPython terminal IDE (ESPTUI)")
     parser.add_argument("--version", action="version", version=f"tuiesp32 {VERSION}")
     parser.add_argument("--config", type=Path)
     parser.add_argument("--init-config", action="store_true")
@@ -138,10 +129,12 @@ def main():
             print(f"Configuracion creada: {path}")
         return
     if args.list_ports:
-        ports = list(serial.tools.list_ports.comports())
-        for port in ports:
-            print(f"{port.device}: {port.description}")
-        if not ports:
+        matched, others = base.get_filtered_ports()
+        all_ports = matched + others
+        for idx, port in enumerate(all_ports, start=1):
+            tag = " [ESP/USB]" if port in matched else ""
+            print(f"[{idx}] {port.device}: {port.description}{tag}")
+        if not all_ports:
             print("No se detectaron puertos seriales.")
         return
     try:

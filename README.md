@@ -3,15 +3,15 @@
 IDE de terminal para trabajar con MicroPython en ESP32/ESP8266. Incluye editor Python, arbol local, listado/subida de archivos de la placa y consola serial. Python, Textual, pyserial y adafruit-ampy.
 
 ```text
-+--------------------------------------+
-|  T U I E S P 3 2                     |
-|       .----------------.             |
-|   ----| ESP32 / Python |----         |
-|       '----------------'             |
-+--------------------------------------+
+███████╗███████╗██████╗ ████████╗██╗   ██╗██╗
+██╔════╝██╔════╝██╔══██╗╚══██╔══╝██║   ██║██║
+█████╗  ███████╗██████╔╝   ██║   ██║   ██║██║
+██╔══╝  ╚════██║██╔═══╝    ██║   ██║   ██║██║
+███████╗███████║██║        ██║   ╚██████╔╝██║
+╚══════╝╚══════╝╚═╝        ╚═╝    ╚═════╝ ╚═╝
 ```
 
-Logo y spinner ASCII en la app y los instaladores. El spinner usa | / - y barra invertida. No incluye Vim/Neovim y CircuitPython no se ha validado.
+Logo y spinner ASCII en instaladores y modales. Área de trabajo maximizada a pantalla completa, navegación de paneles estilo lazygit (1, 2, 3), modo de edición estándar o VIM (Ctrl+V), selección automática de puertos y descarga/edición directa de archivos de la placa.
 
 ## Instalacion local en Linux
 
@@ -100,29 +100,34 @@ La configuracion de la CLI vive en una carpeta de usuario resuelta por platformd
 
 El tema corresponde al editor, no necesariamente al tema general de Textual. La deteccion AUTO utiliza informacion de puertos/chips como heuristica; ante varios candidatos, indica --port.
 
-## Atajos
-
-| Tecla | Accion |
+## Atajos de Teclado
+ 
+| Tecla | Acción |
 | --- | --- |
-| Ctrl+S | Guardar localmente |
-| F5 | Enviar codigo por Paste Mode |
-| F6 | Colapsar/expandir archivos |
-| F7 | Colapsar/expandir consola |
-| F8 | Interrumpir con Ctrl+C |
-| F9 | Reinicio suave con Ctrl+D |
-| Ctrl+Q | Salir |
+| `1` / `Alt+1` | Enfocar panel de archivos locales y remotos (estilo Lazygit) |
+| `2` / `Alt+2` | Enfocar editor de código |
+| `3` / `Alt+3` | Enfocar consola serial REPL |
+| `Ctrl+S` | Guardar archivo actual (localmente o subir directo si es de la placa) |
+| `F5` | Enviar y ejecutar código en placa por Paste Mode |
+| `Ctrl+U` | Subir archivo actual a la placa (`ampy put`) |
+| `F8` | **Parar toda ejecución** (Interrupción doble Ctrl+C en placa) |
+| `F9` | Reinicio suave de la placa (Ctrl+D) |
+| `Ctrl+V` | Alternar modo de editor: Estándar vs VIM (Normal / Insert) |
+| `Ctrl+P` | Selector rápido de puertos seriales filtrados |
+| `F1` / `?` | Abrir modal con lista de atajos |
+| `F6` | Colapsar / expandir panel de archivos |
+| `F7` | Colapsar / expandir consola REPL |
+| `Ctrl+Q` | Salir del IDE |
 
-La CLI inicia con sketch.py en la carpeta actual para no sobrescribir el main.py del IDE. Para trabajar con un main.py de la placa, selecciona ese archivo de tu proyecto y subelo con ese nombre. Guardar localmente, ejecutar temporalmente y subir un archivo son operaciones distintas. Subir no instala firmware.
+La CLI inicia mostrando la raíz de la carpeta personal del usuario (`~`) para proteger el código del proyecto, y abre `sketch.py`. Para editar archivos de la placa, haz click o presiona Enter sobre cualquier archivo del listado remoto: se descargará automáticamente al editor. Guardar (`Ctrl+S`) o Subir (`Ctrl+U`) actualizará el archivo en la placa.
 
-## Conexion y precauciones
+## Conexión y precauciones
 
 - La placa necesita MicroPython compatible.
-- Cierra otras aplicaciones que esten usando el mismo puerto.
-- El lector serial y las tareas de placa se coordinan con un bloqueo. La conexion de pyserial se cierra antes de ampy y se intenta reabrir despues.
-- Las operaciones de ampy pueden interrumpir el programa en ejecucion.
-- Guarda antes de seleccionar otro archivo: aun no hay aviso de cambios pendientes.
-- La consola es un log, no un terminal completo.
-- El listado remoto no permite abrir/descargar archivos seleccionados.
+- Al iniciar o con `Ctrl+P`, un modal clasifica y enumera puertos seriales con filtro tipo grep priorizando chips CP210x, CH340, FTDI y ESP32.
+- El lector serial y las tareas de placa se coordinan con un bloqueo. La conexión de pyserial se cierra antes de ampy y se intenta reabrir después.
+- La edición de archivos de la placa descarga el archivo de forma segura y permite su modificación directa.
+- El botón **Parar** (`F8`) envía interrupciones limpias para detener scripts y bucles infinitos en ejecución.
 - Paste Mode no confirma el prompt ni garantiza la ejecucion con cualquier firmware o programa activo.
 
 Si hay un error de permisos, revisa el grupo propietario del dispositivo y los grupos de tu sesion; no ejecutes el IDE como root para ocultar el problema. Los instaladores no cambian permisos ni drivers.

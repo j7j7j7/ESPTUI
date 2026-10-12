@@ -28,9 +28,20 @@ IDE ligero de terminal para editar, enviar y subir codigo MicroPython a ESP32/ES
 
 ## Interfaz
 
-Tres paneles: archivos locales/listado remoto, editor Python y consola REPL. Los laterales se colapsan en indicadores FILES/REPL. El editor usa espacio restante con 1fr. La CLI empieza editando sketch.py para no sobrescribir el main.py del IDE. El logo aparece en la app y el modal. El spinner recorre | / - y barra invertida.
+Tres paneles: archivos locales (`~` por defecto) y listado remoto de placa, editor Python y consola REPL. Los laterales se colapsan en indicadores FILES/REPL. Navegación numérica entre paneles estilo Lazygit con teclas `1`, `2`, `3` o `Alt+1/2/3`. El área de trabajo ocupa el 100% de la altura de pantalla (banner estático retirado). El logo nuevo ESPTUI y spinner ASCII se preservan en instaladores y modales de proceso.
 
-Atajos: Ctrl+S guardar, F5 enviar Paste Mode, F6 archivos, F7 consola, F8 interrumpir, F9 reinicio suave, Ctrl+Q salir.
+Atajos principales:
+- `1` / `2` / `3`: Enfocar Archivos / Editor / Consola REPL (estilo Lazygit).
+- `Ctrl+S`: Guardar archivo localmente (o subir a la placa si es un archivo remoto editado).
+- `F5`: Enviar y ejecutar código en la placa (Paste Mode).
+- `Ctrl+U`: Subir archivo a la placa (`ampy put`).
+- `F8`: Parar toda ejecución activa (interrupción doble Ctrl+C en placa).
+- `F9`: Reinicio suave de la placa (Ctrl+D).
+- `Ctrl+V`: Alternar modo de edición Estándar vs VIM (NORMAL / INSERT).
+- `Ctrl+P`: Modal de selección rápida de puertos seriales con filtro tipo grep enumerado [1-9].
+- `F1` / `?`: Modal informativo con listado completo de atajos de teclado.
+- `F6` / `F7`: Colapsar/expandir paneles laterales.
+- `Ctrl+Q`: Salir.
 
 ## Reglas de concurrencia y serial
 
@@ -53,14 +64,14 @@ El repositorio se encontro privado al preparar estos cambios. Los comandos anoni
 
 ## Estado real y limitaciones
 
-- No existe edit_mode=vim en la implementacion: el editor es TextArea.code_editor, no Neovim.
+- Modo VIM implementado como modo modal integrado (NORMAL/INSERT con movimientos básicos, hjkl, comandos de inserción y saltos de panel).
 - CircuitPython no esta validado. Priorizar MicroPython.
-- El explorador remoto lista archivos; no abre/descarga archivos al seleccionarlos.
-- No hay proteccion de cambios sin guardar al seleccionar otro archivo.
+- El explorador remoto ahora descarga y permite editar archivos seleccionados directamente con ampy get.
+- Al guardar o subir un archivo descargado de la placa, se actualiza directamente en la memoria flash del ESP32.
 - La consola es un RichLog, no un emulador de terminal. La decodificacion por fragmentos puede afectar caracteres multibyte.
 - Paste Mode usa interrupciones y esperas fijas; no confirma prompts ni dispone de control de flujo completo.
 - Listar/subir con ampy puede interrumpir el programa de la placa. Subir archivos no equivale a actualizar firmware.
-- La autodeteccion es una heuristica. Un unico puerto no garantiza que sea un ESP32. Varios candidatos requieren seleccion explicita.
+- La seleccion de puerto serial se automatiza mediante modal filtrado con enumeracion numerica inmediata.
 - Dependencias con rangos abiertos; no hay lockfile ni releases firmadas.
 - Los instaladores remotos fijan una version de uv; verificar que su URL exista antes de una release. El local usa el instalador oficial sin version fija.
 - La CI configurada no demuestra por si sola que haya pasado. No afirmar soporte probado de todos los OS/CPU/placas.
@@ -87,5 +98,6 @@ Separar en cada entrega: comprobaciones de sintaxis, pruebas ejecutadas, resulta
 - Completar comentarios del nucleo Python en un commit separado.
 - Verificar CI e instalacion real sin Python en los tres sistemas.
 - Mejorar sincronizacion de REPL, cierre/reconexion y pruebas de desconexion.
-- Anadir aviso de cambios sin guardar y apertura de archivos remotos.
+- Anadir aviso de confirmacion para cambios locales sin guardar antes de cambiar de archivo.
 - Definir distribucion publica, versiones fijadas y actualizacion verificable.
+

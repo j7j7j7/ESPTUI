@@ -54,6 +54,30 @@ class UITests(unittest.IsolatedAsyncioTestCase):
                 app.pop_screen()
                 await pilot.pause()
 
+                # Prueba de cambio a modo VIM
+                self.assertFalse(app.editor.vim_enabled)
+                app.action_toggle_vim_mode()
+                self.assertTrue(app.editor.vim_enabled)
+                self.assertEqual(app.editor.vim_mode, "NORMAL")
+                app.action_toggle_vim_mode()
+                self.assertFalse(app.editor.vim_enabled)
+
+                # Prueba de parada / stop
+                with patch.object(app, "write_repl") as mock_write:
+                    app.action_stop_execution()
+                    mock_write.assert_called_with(b"\x03\x03")
+
+                # Prueba de navegación de paneles (1, 2, 3)
+                app.action_focus_panel("1")
+                await pilot.pause()
+                app.action_focus_panel("2")
+                await pilot.pause()
+                self.assertTrue(app.editor.has_focus)
+                app.action_focus_panel("3")
+                await pilot.pause()
+                self.assertTrue(app.query_one("#serial-input").has_focus)
+
 
 if __name__ == "__main__":
     unittest.main()
+

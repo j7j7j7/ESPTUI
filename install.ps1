@@ -1,12 +1,12 @@
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Write-Host @'
-+--------------------------------------+
-|  T U I E S P 3 2                     |
-|       .----------------.             |
-|   ----| ESP32 / Python |----         |
-|       '----------------'             |
-+--------------------------------------+
+███████╗███████╗██████╗ ████████╗██╗   ██╗██╗
+██╔════╝██╔════╝██╔══██╗╚══██╔══╝██║   ██║██║
+█████╗  ███████╗██████╔╝   ██║   ██║   ██║██║
+██╔══╝  ╚════██║██╔═══╝    ██║   ██║   ██║██║
+███████╗███████║██║        ██║   ╚██████╔╝██║
+╚══════╝╚══════╝╚═╝        ╚═╝    ╚═════╝ ╚═╝
 '@
 $Work = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $Work | Out-Null
