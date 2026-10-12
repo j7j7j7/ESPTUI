@@ -480,14 +480,22 @@ class ESP32TUIApp(App):
             self.stopping.wait(0.02)
 
     def ampy(self, *args):
-        result = subprocess.run(
-            ["ampy", "--port", self.port, "--baud", str(self.config["baudrate"]), *args],
-            capture_output=True, text=True, timeout=30,
-        )
-        if result.returncode:
-            raise RuntimeError(result.stderr.strip() or result.stdout.strip()
-                                or f"ampy terminó con código {result.returncode}")
-        return result.stdout
+        last_error = None
+        for attempt in range(4):
+            result = subprocess.run(
+                ["ampy", "--port", self.port, "--baud", str(self.config["baudrate"]), *args],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode == 0:
+                return result.stdout
+            err = (result.stderr.strip() or result.stdout.strip()
+                   or f"ampy terminó con código {result.returncode}")
+            last_error = err
+            if any(msg in err for msg in ("Permission denied", "could not open port", "Device or resource busy")):
+                time.sleep(0.3)
+                continue
+            raise RuntimeError(err)
+        raise RuntimeError(last_error or "ampy no pudo acceder al puerto serial tras varios intentos")
 
     def get_busy_screen(self):
         return BusyScreen()
@@ -543,6 +551,8 @@ class ESP32TUIApp(App):
                         except Exception:
                             pass
                         self.ser.close()
+                    # Permitir al driver del kernel de Linux liberar completamente el descriptor del puerto
+                    time.sleep(0.25)
                     try:
                         if operation == "upload":
                             with tempfile.TemporaryDirectory(prefix="esp32-tui-") as directory:
@@ -557,7 +567,7 @@ class ESP32TUIApp(App):
                         files = self.ampy("ls").splitlines()
                     finally:
                         if not self.stopping.is_set():
-                            time.sleep(0.15)
+                            time.sleep(0.25)
                             try:
                                 self.open_serial()
                                 messages.append(f"Consola reconectada: {self.port}")

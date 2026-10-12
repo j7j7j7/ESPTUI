@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 from platformdirs import user_config_path
@@ -110,15 +111,23 @@ class TerminalIDE(base.ESP32TUIApp):
         return AsciiBusyScreen()
 
     def ampy(self, *args):
-        result = subprocess.run(
-            [sys.executable, "-c", "from ampy.cli import cli; cli()",
-             "--port", self.port, "--baud", str(self.config["baudrate"]), *args],
-            capture_output=True, text=True, timeout=30,
-        )
-        if result.returncode:
-            raise RuntimeError(result.stderr.strip() or result.stdout.strip()
-                                or f"ampy termino con codigo {result.returncode}")
-        return result.stdout
+        last_error = None
+        for attempt in range(4):
+            result = subprocess.run(
+                [sys.executable, "-c", "from ampy.cli import cli; cli()",
+                 "--port", self.port, "--baud", str(self.config["baudrate"]), *args],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode == 0:
+                return result.stdout
+            err = (result.stderr.strip() or result.stdout.strip()
+                   or f"ampy termino con codigo {result.returncode}")
+            last_error = err
+            if any(msg in err for msg in ("Permission denied", "could not open port", "Device or resource busy")):
+                time.sleep(0.3)
+                continue
+            raise RuntimeError(err)
+        raise RuntimeError(last_error or "ampy no pudo acceder al puerto serial tras varios intentos")
 
 
 def main():
