@@ -1,8 +1,8 @@
 """ESP32 terminal IDE para MicroPython (ESPTUI).
 Instalación: python -m pip install 'textual[syntax]' pyserial adafruit-ampy
 Ejecución: python main.py o tuiesp32
-Soporta edición estándar y modo VIM, selección rápida de puertos seriales,
-navegación de paneles estilo lazygit, y edición de archivos locales y remotos.
+Editor de código estándar, selección rápida de puertos seriales,
+navegación homogénea de paneles y edición de archivos locales y remotos.
 """
 
 import json
@@ -196,31 +196,24 @@ class KeybindingsHelpModal(ModalScreen):
     ]
 
     HELP_INFO = """
-[b cyan]Navegación de Paneles (Estilo Lazygit):[/]
-  [b yellow]1[/]           Enfocar panel de Archivos locales y de la placa
-  [b yellow]2[/]           Enfocar Editor de código
-  [b yellow]3[/]           Enfocar Consola REPL (comando serial)
-  [b yellow]Alt+1/2/3[/]   Navegación directa entre paneles desde cualquier foco
+[b cyan]Navegación entre Paneles:[/]
+  [b yellow]Alt+1[/]         Enfocar panel de Archivos locales y placa
+  [b yellow]Alt+2[/]         Enfocar Editor de código
+  [b yellow]Alt+3[/]         Enfocar Consola REPL
 
-[b cyan]Operaciones de Código y Placa ESP32:[/]
-  [b yellow]Ctrl+S[/]      Guardar archivo (local o subir directo si es de la placa)
-  [b yellow]F5[/]          Ejecutar código en placa vía Paste Mode
-  [b yellow]Ctrl+U[/]      Subir archivo a la placa (ampy put)
-  [b yellow]F8[/]          [b red]Parar ejecución[/] (Interrupción Ctrl+C en placa)
-  [b yellow]F9[/]          Reinicio suave (Ctrl+D)
+[b cyan]Operaciones del Editor y Placa ESP32:[/]
+  [b yellow]Ctrl+S[/]        Guardar archivo actual (localmente o en placa)
+  [b yellow]F5[/]            Ejecutar código en la placa (Paste Mode)
+  [b yellow]F6[/]            Subir archivo actual a la memoria de la placa (ampy put)
+  [b yellow]F8[/]            [b red]Parar ejecución[/] (Interrupción Ctrl+C en placa)
+  [b yellow]F9[/]            Reinicio suave de la placa (Ctrl+D)
 
-[b cyan]Modo de Edición (Estándar vs VIM):[/]
-  [b yellow]Ctrl+V[/]      Alternar entre edición Estándar y modo VIM
-  * En VIM Normal: [yellow]h/j/k/l[/] mover cursor, [yellow]i/a/o[/] insertar, [yellow]x[/] borrar, [yellow]u[/] deshacer
-  * En VIM Normal: teclas [yellow]1[/], [yellow]2[/], [yellow]3[/] saltan directamente a los paneles
-  * En VIM Insert: [yellow]Esc[/] vuelve a modo Normal
-
-[b cyan]Control de Interfaz y Conexión:[/]
-  [b yellow]Ctrl+P[/]      Abrir selector rápido de puertos seriales
-  [b yellow]F6[/]          Colapsar / expandir panel de archivos
-  [b yellow]F7[/]          Colapsar / expandir consola REPL
-  [b yellow]F1[/] o [b yellow]?[/],    Abrir este modal de atajos
-  [b yellow]Ctrl+Q[/]      Salir de la aplicación
+[b cyan]Herramientas y Vistas:[/]
+  [b yellow]F1[/] o [b yellow]?[/]        Mostrar esta ventana de ayuda y atajos
+  [b yellow]F2[/] o [b yellow]Ctrl+P[/]   Selector rápido de puertos seriales
+  [b yellow]F7[/]            Colapsar / expandir consola REPL
+  [b yellow]F10[/]           Colapsar / expandir panel de archivos
+  [b yellow]Ctrl+Q[/]        Salir del IDE
 """
 
     def compose(self) -> ComposeResult:
@@ -235,89 +228,6 @@ class KeybindingsHelpModal(ModalScreen):
     def on_button_pressed(self, event: Button.Pressed):
         if event.button.id == "btn-close-help":
             self.dismiss()
-
-
-class VimCodeEditor(TextArea):
-    """Editor de código con soporte para modo estándar y modo VIM modal."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.vim_enabled = False
-        self.vim_mode = "NORMAL"
-
-    def on_key(self, event) -> None:
-        if not self.vim_enabled:
-            return
-
-        if self.vim_mode == "INSERT":
-            if event.key == "escape":
-                self.vim_mode = "NORMAL"
-                if hasattr(self.app, "update_editor_mode_display"):
-                    self.app.update_editor_mode_display()
-                event.prevent_default()
-                event.stop()
-            return
-
-        # Modo VIM NORMAL
-        if event.key in ("1", "2", "3"):
-            if hasattr(self.app, "action_focus_panel"):
-                panel_map = {"1": "files", "2": "editor", "3": "console"}
-                self.app.action_focus_panel(panel_map[event.key])
-            event.prevent_default()
-            event.stop()
-            return
-        elif event.key == "h":
-            self.action_cursor_left()
-        elif event.key == "l":
-            self.action_cursor_right()
-        elif event.key == "k":
-            self.action_cursor_up()
-        elif event.key == "j":
-            self.action_cursor_down()
-        elif event.key == "w":
-            self.action_cursor_word_right()
-        elif event.key == "b":
-            self.action_cursor_word_left()
-        elif event.key in ("0", "home"):
-            self.action_cursor_line_start()
-        elif event.key in ("dollar", "end"):
-            self.action_cursor_line_end()
-        elif event.key == "x":
-            self.action_delete_right()
-        elif event.key == "u":
-            self.action_undo()
-        elif event.key == "r" and event.ctrl:
-            self.action_redo()
-        elif event.key == "i":
-            self.vim_mode = "INSERT"
-            if hasattr(self.app, "update_editor_mode_display"):
-                self.app.update_editor_mode_display()
-        elif event.key == "a":
-            self.action_cursor_right()
-            self.vim_mode = "INSERT"
-            if hasattr(self.app, "update_editor_mode_display"):
-                self.app.update_editor_mode_display()
-        elif event.key == "A":
-            self.action_cursor_line_end()
-            self.vim_mode = "INSERT"
-            if hasattr(self.app, "update_editor_mode_display"):
-                self.app.update_editor_mode_display()
-        elif event.key == "I":
-            self.action_cursor_line_start()
-            self.vim_mode = "INSERT"
-            if hasattr(self.app, "update_editor_mode_display"):
-                self.app.update_editor_mode_display()
-        elif event.key == "o":
-            self.action_cursor_line_end()
-            self.insert("\n")
-            self.vim_mode = "INSERT"
-            if hasattr(self.app, "update_editor_mode_display"):
-                self.app.update_editor_mode_display()
-        elif event.key == "d":
-            self.action_delete_line()
-
-        event.prevent_default()
-        event.stop()
 
 
 class ESP32TUIApp(App):
@@ -341,38 +251,35 @@ class ESP32TUIApp(App):
     #code-editor { height: 1fr; border: heavy gray; }
     #serial-log { height: 1fr; border: heavy gray; }
     #serial-input { height: 3; margin-top: 1; }
-    #editor-header { height: auto; margin-bottom: 1; }
-    #editor-title { width: 1fr; color: cyan; }
-    #editor-mode-badge { width: auto; color: yellow; text-style: bold; }
     #editor-buttons { height: 3; margin-top: 1; }
     #editor-buttons Button { width: 1fr; min-width: 0; margin: 0 1; }
     #refresh-esp32 { width: 100%; margin-top: 1; }
     """
     BINDINGS = [
-        # Navegación estilo lazygit
-        Binding("1", "focus_panel('files')", "Archivos [1]", priority=False),
-        Binding("2", "focus_panel('editor')", "Editor [2]", priority=False),
-        Binding("3", "focus_panel('console')", "Consola [3]", priority=False),
-        Binding("alt+1", "focus_panel('files')", "Archivos", priority=True),
-        Binding("alt+2", "focus_panel('editor')", "Editor", priority=True),
-        Binding("alt+3", "focus_panel('console')", "Consola", priority=True),
+        # Navegación homogénea entre paneles
+        Binding("alt+1", "focus_panel('files')", "Archivos [Alt+1]", priority=True),
+        Binding("alt+2", "focus_panel('editor')", "Editor [Alt+2]", priority=True),
+        Binding("alt+3", "focus_panel('console')", "Consola [Alt+3]", priority=True),
+        Binding("1", "focus_panel('files')", "Archivos", priority=False),
+        Binding("2", "focus_panel('editor')", "Editor", priority=False),
+        Binding("3", "focus_panel('console')", "Consola", priority=False),
 
-        # Operaciones y botones
+        # Operaciones homogéneas del Editor y la Placa
         Binding("ctrl+s", "save_file", "Guardar", priority=True),
         Binding("f5", "run_code", "Ejecutar", priority=True),
-        Binding("ctrl+u", "upload_file", "Subir", priority=True),
+        Binding("f6", "upload_file", "Subir", priority=True),
         Binding("f8", "stop_execution", "Parar", priority=True),
         Binding("f9", "send_soft_reset", "Reiniciar", priority=True),
 
-        # Modos y diálogo de ayuda
-        Binding("ctrl+v", "toggle_vim_mode", "Modo VIM", priority=True),
-        Binding("f1", "show_help", "Atajos", priority=True),
+        # Herramientas y modales
+        Binding("f1", "show_help", "Ayuda", priority=True),
         Binding("question_mark", "show_help", "Ayuda", priority=False),
+        Binding("f2", "select_port", "Puertos", priority=True),
         Binding("ctrl+p", "select_port", "Puertos", priority=True),
 
-        # Control de paneles
-        Binding("f6", "toggle_sidebar", "Archivos", priority=True),
+        # Control de paneles y salida
         Binding("f7", "toggle_console", "Consola", priority=True),
+        Binding("f10", "toggle_sidebar", "Archivos", priority=True),
         Binding("ctrl+q", "quit", "Salir", priority=True),
     ]
 
@@ -395,7 +302,7 @@ class ESP32TUIApp(App):
         yield Header()
         with Horizontal(id="workspace"):
             with Vertical(id="sidebar"):
-                yield Static("Archivos locales [1]", classes="title hideable")
+                yield Static("Archivos [Alt+1]", classes="title hideable")
                 with Vertical(classes="panel-content hideable"):
                     yield DirectoryTree(str(self.user_home), id="local-files")
                     yield Static("ESP32: sin conectar", id="board-title", classes="title")
@@ -403,20 +310,18 @@ class ESP32TUIApp(App):
                     yield Button("Refrescar placa", id="refresh-esp32")
                 yield Static("F\nI\nL\nE\nS", classes="collapsed-label")
             with Vertical(id="editor-pane"):
-                with Horizontal(id="editor-header"):
-                    yield Static("Editor [2]: main.py", id="editor-title")
-                    yield Static("[Modo: Estándar | Ctrl+V para VIM]", id="editor-mode-badge")
-                yield VimCodeEditor(
+                yield Static("Editor [Alt+2]: main.py", id="editor-title", classes="title")
+                yield TextArea.code_editor(
                     "# MicroPython\nprint('Hola ESP32')\n",
                     language="python", theme=self.config["theme"], id="code-editor",
                 )
                 with Horizontal(id="editor-buttons"):
                     yield Button("Guardar (Ctrl+S)", id="save-btn", variant="success")
                     yield Button("Ejecutar (F5)", id="send-btn", variant="primary")
-                    yield Button("Subir (Ctrl+U)", id="upload-btn", variant="warning")
+                    yield Button("Subir (F6)", id="upload-btn", variant="warning")
                     yield Button("Parar (F8)", id="stop-btn", variant="error")
             with Vertical(id="console-pane"):
-                yield Static("Consola REPL [3]", classes="title hideable")
+                yield Static("Consola REPL [Alt+3]", classes="title hideable")
                 with Vertical(classes="panel-content hideable"):
                     yield RichLog(id="serial-log", markup=False, highlight=False, max_lines=3000)
                     yield Input(placeholder="Comando REPL...", id="serial-input")
@@ -424,10 +329,9 @@ class ESP32TUIApp(App):
         yield Footer()
 
     def on_mount(self):
-        self.editor = self.query_one("#code-editor", VimCodeEditor)
+        self.editor = self.query_one("#code-editor", TextArea)
         self.serial_log = self.query_one("#serial-log", RichLog)
         self.remote_files = self.query_one("#esp32-files", ListView)
-        self.update_editor_mode_display()
 
         # Si se especificó un puerto estático en config distinto a AUTO, conectar directo
         if self.config["port"] != "AUTO":
@@ -435,23 +339,6 @@ class ESP32TUIApp(App):
         else:
             # En modo AUTO, mostrar modal enumerado para selección rápida
             self.call_after_refresh(self.action_select_port)
-
-    def update_editor_mode_display(self):
-        badge = self.query_one("#editor-mode-badge", Static)
-        if not self.editor.vim_enabled:
-            badge.update("[Modo: Estándar | Ctrl+V: VIM]")
-        else:
-            if self.editor.vim_mode == "NORMAL":
-                badge.update("[VIM: NORMAL (i:Insert, hjkl, 1-3:Paneles)]")
-            else:
-                badge.update("[VIM: INSERT (Esc:Normal)]")
-
-    def action_toggle_vim_mode(self):
-        self.editor.vim_enabled = not self.editor.vim_enabled
-        self.editor.vim_mode = "NORMAL"
-        self.update_editor_mode_display()
-        modo_txt = "Activado" if self.editor.vim_enabled else "Desactivado"
-        self.serial_log.write(f"Modo VIM {modo_txt}. (Usa Ctrl+V para alternar)")
 
     def action_show_help(self):
         self.push_screen(KeybindingsHelpModal())

@@ -11,7 +11,7 @@ IDE de terminal para trabajar con MicroPython en ESP32/ESP8266. Incluye editor P
 ╚══════╝╚══════╝╚═╝        ╚═╝    ╚═════╝ ╚═╝
 ```
 
-Logo y spinner ASCII en instaladores y modales. Área de trabajo maximizada a pantalla completa, navegación de paneles estilo lazygit (1, 2, 3), modo de edición estándar o VIM (Ctrl+V), selección automática de puertos y descarga/edición directa de archivos de la placa.
+Logo y spinner ASCII en instaladores y modales. Área de trabajo maximizada a pantalla completa, editor estándar predecible, navegación homogénea de paneles (Alt+1/2/3), selección automática de puertos y descarga/edición directa de archivos de la placa.
 
 ## Instalacion local en Linux
 
@@ -104,22 +104,21 @@ El tema corresponde al editor, no necesariamente al tema general de Textual. La 
  
 | Tecla | Acción |
 | --- | --- |
-| `1` / `Alt+1` | Enfocar panel de archivos locales y remotos (estilo Lazygit) |
-| `2` / `Alt+2` | Enfocar editor de código |
-| `3` / `Alt+3` | Enfocar consola serial REPL |
-| `Ctrl+S` | Guardar archivo actual (localmente o subir directo si es de la placa) |
-| `F5` | Enviar y ejecutar código en placa por Paste Mode |
-| `Ctrl+U` | Subir archivo actual a la placa (`ampy put`) |
-| `F8` | **Parar toda ejecución** (Interrupción doble Ctrl+C en placa) |
-| `F9` | Reinicio suave de la placa (Ctrl+D) |
-| `Ctrl+V` | Alternar modo de editor: Estándar vs VIM (Normal / Insert) |
-| `Ctrl+P` | Selector rápido de puertos seriales filtrados |
-| `F1` / `?` | Abrir modal con lista de atajos |
-| `F6` | Colapsar / expandir panel de archivos |
+| `Alt+1` | Enfocar panel de archivos (local y remoto) |
+| `Alt+2` | Enfocar editor de código |
+| `Alt+3` | Enfocar consola serial REPL |
+| `Ctrl+S` | **Guardar** archivo actual (localmente o en placa) |
+| `F5` | **Ejecutar** código en placa vía Paste Mode |
+| `F6` | **Subir** archivo actual a la placa (`ampy put`) |
+| `F8` | **Parar** toda ejecución (Interrupción doble Ctrl+C en placa) |
+| `F9` | **Reiniciar** placa (Soft reset con Ctrl+D) |
+| `F1` / `?` | Abrir ventana de ayuda y atajos |
+| `F2` / `Ctrl+P` | Selector rápido de puertos seriales filtrados |
 | `F7` | Colapsar / expandir consola REPL |
+| `F10` | Colapsar / expandir panel de archivos |
 | `Ctrl+Q` | Salir del IDE |
 
-La CLI inicia mostrando la raíz de la carpeta personal del usuario (`~`) para proteger el código del proyecto, y abre `sketch.py`. Para editar archivos de la placa, haz click o presiona Enter sobre cualquier archivo del listado remoto: se descargará automáticamente al editor. Guardar (`Ctrl+S`) o Subir (`Ctrl+U`) actualizará el archivo en la placa.
+La CLI inicia mostrando la raíz de la carpeta personal del usuario (`~`) para proteger el código del proyecto, y abre `sketch.py`. Para editar archivos de la placa, haz click o presiona Enter sobre cualquier archivo del listado remoto: detendrá cualquier ejecución previa y se descargará automáticamente al editor. Guardar (`Ctrl+S`) o Subir (`F6`) actualizará el archivo en la placa.
 
 ## Conexión y precauciones
 

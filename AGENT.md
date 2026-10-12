@@ -28,20 +28,20 @@ IDE ligero de terminal para editar, enviar y subir codigo MicroPython a ESP32/ES
 
 ## Interfaz
 
-Tres paneles: archivos locales (`~` por defecto) y listado remoto de placa, editor Python y consola REPL. Los laterales se colapsan en indicadores FILES/REPL. Navegación numérica entre paneles estilo Lazygit con teclas `1`, `2`, `3` o `Alt+1/2/3`. El área de trabajo ocupa el 100% de la altura de pantalla (banner estático retirado). El logo nuevo ESPTUI y spinner ASCII se preservan en instaladores y modales de proceso.
+Tres paneles: archivos locales (`~` por defecto) y listado remoto de placa, editor Python y consola REPL. Los laterales se colapsan en indicadores FILES/REPL. Navegación homogénea entre paneles con teclas `Alt+1` (Archivos), `Alt+2` (Editor) y `Alt+3` (Consola REPL). El área de trabajo ocupa el 100% de la altura de pantalla (banner estático retirado). El logo nuevo ESPTUI y spinner ASCII se preservan en instaladores y modales de proceso.
 
-Atajos principales:
-- `1` / `2` / `3`: Enfocar Archivos / Editor / Consola REPL (estilo Lazygit).
-- `Ctrl+S`: Guardar archivo localmente (o subir a la placa si es un archivo remoto editado).
+Atajos homogéneos y coherentes:
+- `Alt+1` / `Alt+2` / `Alt+3`: Enfocar panel de Archivos / Editor / Consola REPL.
+- `Ctrl+S`: Guardar archivo actual (localmente o en placa si fue descargado).
 - `F5`: Enviar y ejecutar código en la placa (Paste Mode).
-- `Ctrl+U`: Subir archivo a la placa (`ampy put`).
+- `F6`: Subir archivo a la memoria flash de la placa (`ampy put`).
 - `F8`: Parar toda ejecución activa (interrupción doble Ctrl+C en placa).
 - `F9`: Reinicio suave de la placa (Ctrl+D).
-- `Ctrl+V`: Alternar modo de edición Estándar vs VIM (NORMAL / INSERT).
-- `Ctrl+P`: Modal de selección rápida de puertos seriales con filtro tipo grep enumerado [1-9].
 - `F1` / `?`: Modal informativo con listado completo de atajos de teclado.
-- `F6` / `F7`: Colapsar/expandir paneles laterales.
-- `Ctrl+Q`: Salir.
+- `F2` / `Ctrl+P`: Modal de selección rápida de puertos seriales con filtro tipo grep.
+- `F7`: Colapsar / expandir consola REPL.
+- `F10`: Colapsar / expandir panel de archivos.
+- `Ctrl+Q`: Salir del IDE.
 
 ## Reglas de concurrencia y serial
 
@@ -64,10 +64,10 @@ El repositorio se encontro privado al preparar estos cambios. Los comandos anoni
 
 ## Estado real y limitaciones
 
-- Modo VIM implementado como modo modal integrado (NORMAL/INSERT con movimientos básicos, hjkl, comandos de inserción y saltos de panel).
+- Editor estándar de Textual (TextArea.code_editor), comportamiento habitual con flechas, ratón y selección; sin modos VIM para evitar interferencias.
 - CircuitPython no esta validado. Priorizar MicroPython.
-- El explorador remoto ahora descarga y permite editar archivos seleccionados directamente con ampy get.
-- Al guardar o subir un archivo descargado de la placa, se actualiza directamente en la memoria flash del ESP32.
+- El explorador remoto descarga y edita archivos con un click, deteniendo previamente cualquier bucle en ejecución.
+- Al guardar (`Ctrl+S`) o subir (`F6`) un archivo descargado de la placa, se actualiza directamente en la flash del ESP32.
 - La consola es un RichLog, no un emulador de terminal. La decodificacion por fragmentos puede afectar caracteres multibyte.
 - Paste Mode usa interrupciones y esperas fijas; no confirma prompts ni dispone de control de flujo completo.
 - Listar/subir con ampy puede interrumpir el programa de la placa. Subir archivos no equivale a actualizar firmware.

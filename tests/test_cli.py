@@ -54,13 +54,8 @@ class UITests(unittest.IsolatedAsyncioTestCase):
                 app.pop_screen()
                 await pilot.pause()
 
-                # Prueba de cambio a modo VIM
-                self.assertFalse(app.editor.vim_enabled)
-                app.action_toggle_vim_mode()
-                self.assertTrue(app.editor.vim_enabled)
-                self.assertEqual(app.editor.vim_mode, "NORMAL")
-                app.action_toggle_vim_mode()
-                self.assertFalse(app.editor.vim_enabled)
+                # Editor estándar de Textual
+                self.assertIsInstance(app.editor, TextArea)
 
                 # Prueba de parada / stop
                 with patch.object(app, "write_repl") as mock_write:
