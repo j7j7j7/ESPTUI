@@ -1,23 +1,46 @@
 # TUIESP32
 
-Terminal IDE for ESP32/ESP8266 MicroPython, with a Python editor, serial REPL,
-local tree, remote file listing/upload, ASCII logo and ASCII loading spinner.
-Vim/Neovim mode and CircuitPython compatibility are not implemented/validated.
+IDE de terminal para trabajar con MicroPython en ESP32/ESP8266. Incluye editor Python, arbol local, listado/subida de archivos de la placa y consola serial. Python, Textual, pyserial y adafruit-ampy.
 
-## Installation
+```text
++--------------------------------------+
+|  T U I E S P 3 2                     |
+|       .----------------.             |
+|   ----| ESP32 / Python |----         |
+|       '----------------'             |
++--------------------------------------+
+```
 
-The installers reuse a compatible Python 3.12 interpreter or let uv download one.
-They install dependencies into an isolated tool environment, without sudo/admin.
-They add the tool directory to the shell PATH; reopen the terminal afterwards.
-Internet access and curl/wget on Unix or Windows PowerShell 5.1 are required.
-USB drivers and serial permissions are not installed or changed automatically.
-The currently intended targets are modern Linux, macOS and Windows. This is not
-an assurance of compatibility with every OS version/CPU or USB device.
+Logo y spinner ASCII en la app y los instaladores. El spinner usa | / - y barra invertida. No incluye Vim/Neovim y CircuitPython no se ha validado.
 
-### Public repository only
+## Instalacion local en Linux
 
-These anonymous commands work ONLY if the repository is made public. The installer
-files and packaging must first be committed. Review downloaded scripts before execution.
+Desde una copia del proyecto que contenga main.py, tuiesp32.py, pyproject.toml y estos scripts:
+
+```bash
+bash install-local.sh
+bash run-local.sh --version
+bash run-local.sh --list-ports
+bash run-local.sh
+```
+
+Revisa el script antes de ejecutarlo. No uses sudo. Si uv no existe, lo instala para tu usuario. uv selecciona Python 3.12 o descarga uno compatible si falta e instala las dependencias en un entorno aislado. Necesitas internet; no es una instalacion offline. Si ya existe tuiesp32, esta copia local reemplaza la instalacion anterior. Puede modificar perfiles de shell para PATH.
+
+La app instalada no necesita conservar las fuentes. Conserva los scripts si quieres seguir usando el lanzador auxiliar o reinstalar desde estas fuentes. No se abre automaticamente al terminar la instalacion.
+
+Tras reabrir la terminal:
+
+```bash
+tuiesp32
+```
+
+## Instalacion remota
+
+Linux/macOS usan install.sh; Windows usa install.ps1. Los objetivos son sistemas modernos compatibles con Python y uv, no cualquier version/CPU. Estos scripts no instalan drivers USB ni cambian permisos seriales.
+
+### Si el repositorio es publico
+
+Estos comandos anonimos requieren que el codigo y los instaladores sean publicos. No funcionan sin autenticacion mientras el repositorio permanezca privado.
 
 Linux/macOS:
 
@@ -25,21 +48,17 @@ Linux/macOS:
 curl -fsSL https://raw.githubusercontent.com/j7j7j7/TUIESP32/main/install.sh | sh
 ```
 
-Windows (Windows PowerShell):
+Windows PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/j7j7j7/TUIESP32/main/install.ps1 | iex
 ```
 
-### Private repository
+### Si el repositorio es privado
 
-Keep the repository private if desired. Use a GitHub token with Contents: read
-access to this repository. Never put tokens in URLs or commit them. Set
-GITHUB_TOKEN in your environment through your preferred secure secret mechanism.
-Credentials are used for GitHub downloads, never for Astral or PyPI.
-Clear the environment variable after installation. Review the script first.
+Configura GITHUB_TOKEN mediante tu mecanismo seguro preferido. El token debe tener acceso de lectura al contenido de este repositorio. No lo escribas en URLs ni lo guardes en Git. Revisa scripts antes de ejecutarlos y elimina la variable cuando ya no la necesites.
 
-Linux/macOS, with GITHUB_TOKEN already exported:
+Linux/macOS, con GITHUB_TOKEN exportado:
 
 ```sh
 curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
@@ -47,66 +66,110 @@ curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
   'https://api.github.com/repos/j7j7j7/TUIESP32/contents/install.sh?ref=main' | sh
 ```
 
-Windows PowerShell, with $env:GITHUB_TOKEN already set:
+Windows PowerShell, con $env:GITHUB_TOKEN configurado:
 
 ```powershell
 $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github.raw+json' }
 irm -Headers $headers -Uri 'https://api.github.com/repos/j7j7j7/TUIESP32/contents/install.ps1?ref=main' | iex
 ```
 
-The scripts default to the main branch. Set TUIESP32_REF to an existing tag or
-commit SHA to request a specific source version. These are development installers;
-a locked dependency set and signed release artifacts remain future work.
+Los instaladores remotos descargan las fuentes de main por defecto. TUIESP32_REF permite seleccionar una etiqueta o SHA existente para la descarga del archivo. Las URLs de ejemplo para descargar el script siguen apuntando a main; ajusta tambien esa referencia si necesitas fijar ambos. No hay lockfile ni releases firmadas.
 
-## Usage
+## Uso y configuracion
 
 ```text
-tuiesp32
 tuiesp32 --version
+tuiesp32 --help
 tuiesp32 --list-ports
-tuiesp32 --port COM3
 tuiesp32 --port /dev/ttyUSB0
+tuiesp32 --port COM3
+tuiesp32 --baudrate 115200
 tuiesp32 --init-config
-tuiesp32 --config /path/to/config.json
+tuiesp32 --config /ruta/config.json
 ```
 
-Configuration is stored in the user's OS-specific config directory (platformdirs).
---init-config prints the actual location and never overwrites an existing file.
-Defaults: port AUTO, baudrate 115200, editor theme monokai.
+La configuracion de la CLI vive en una carpeta de usuario resuelta por platformdirs. --init-config imprime la ubicacion, crea el JSON si falta y no sobrescribe uno existente. Defaults:
 
-The installed CLI initially edits sketch.py in the current working directory,
-not the IDE's main.py. Choose a local main.py from a separate project folder if
-that is the filename you want to upload to the board. Selecting a file currently
-discards unsaved edits: save before switching files.
+```json
+{
+  "port": "AUTO",
+  "baudrate": 115200,
+  "theme": "monokai"
+}
+```
 
-F5 sends code through MicroPython Paste Mode. F6/F7 toggle panels, F8 interrupts,
-F9 sends soft reset, Ctrl+S saves locally, Ctrl+Q exits. Upload sends a file;
-it does not flash firmware. ampy may interrupt a running board program to access
-its filesystem. The REPL is a log, not a complete terminal emulator.
+El tema corresponde al editor, no necesariamente al tema general de Textual. La deteccion AUTO utiliza informacion de puertos/chips como heuristica; ante varios candidatos, indica --port.
 
-The ASCII spinner uses | / - and backslash, not Unicode animation. The installer
-falls back to plain progress lines when output is redirected (Unix) or suppresses
-animated output (Windows). Windows downloads print a static progress label.
+## Atajos
 
-## Update / uninstall
+| Tecla | Accion |
+| --- | --- |
+| Ctrl+S | Guardar localmente |
+| F5 | Enviar codigo por Paste Mode |
+| F6 | Colapsar/expandir archivos |
+| F7 | Colapsar/expandir consola |
+| F8 | Interrumpir con Ctrl+C |
+| F9 | Reinicio suave con Ctrl+D |
+| Ctrl+Q | Salir |
 
-Repeat the installer to update from the selected source ref.
+La CLI inicia con sketch.py en la carpeta actual para no sobrescribir el main.py del IDE. Para trabajar con un main.py de la placa, selecciona ese archivo de tu proyecto y subelo con ese nombre. Guardar localmente, ejecutar temporalmente y subir un archivo son operaciones distintas. Subir no instala firmware.
+
+## Conexion y precauciones
+
+- La placa necesita MicroPython compatible.
+- Cierra otras aplicaciones que esten usando el mismo puerto.
+- El lector serial y las tareas de placa se coordinan con un bloqueo. La conexion de pyserial se cierra antes de ampy y se intenta reabrir despues.
+- Las operaciones de ampy pueden interrumpir el programa en ejecucion.
+- Guarda antes de seleccionar otro archivo: aun no hay aviso de cambios pendientes.
+- La consola es un log, no un terminal completo.
+- El listado remoto no permite abrir/descargar archivos seleccionados.
+- Paste Mode no confirma el prompt ni garantiza la ejecucion con cualquier firmware o programa activo.
+
+Si hay un error de permisos, revisa el grupo propietario del dispositivo y los grupos de tu sesion; no ejecutes el IDE como root para ocultar el problema. Los instaladores no cambian permisos ni drivers.
+
+## Actualizar y desinstalar
+
+Actualizacion local: vuelve a ejecutar bash install-local.sh sobre las fuentes actualizadas. Actualizacion remota: repite el instalador para la referencia elegida.
 
 ```text
 uv tool uninstall tuiesp32
 ```
 
-This does not delete configuration, user sketches or a shared uv/Python installation.
+Desinstalar la herramienta no elimina tu configuracion, sketches ni una instalacion compartida de uv/Python.
 
-## Development and validation
+## Estructura
+
+```text
+main.py                     Nucleo de la TUI y conexion serial
+tuiesp32.py                  CLI, configuracion y UI ASCII
+pyproject.toml              Paquete y dependencias
+install.sh                  Instalacion remota Linux/macOS
+install.ps1                 Instalacion remota Windows
+install-local.sh            Instalacion desde fuentes en Linux
+run-local.sh                Lanzador auxiliar
+AGENT.md                    Contexto y reglas de trabajo
+docs/REFERENCIA-CODIGO.md    Explicacion tecnica
+tests/test_cli.py           Pruebas sin placa
+.github/workflows/ci.yml    CI para los tres sistemas
+```
+
+python main.py conserva la entrada de desarrollo heredada. Para la configuracion por usuario, invocacion de ampy dentro del entorno y UI ASCII, usa tuiesp32.
+
+## Desarrollo y validacion
 
 ```sh
 python -m pip install -e .
 python -m unittest discover -s tests -v
+python -m build
+bash -n install-local.sh
+sh -n run-local.sh
+sh -n install.sh
 ```
 
-CI is configured for Linux, macOS and Windows with Python 3.12. It checks the CLI,
-headless layout/spinner and ampy invocation, without hardware. The installer and
-USB/REPL behavior need actual machine/board testing; CI does not certify them.
-python main.py remains the legacy development entry point; use tuiesp32 for the
-new per-user configuration, ASCII UI and packaged ampy invocation.
+La CI esta configurada para construir el wheel, comprobar la CLI, ejecutar pruebas sin placa y revisar sintaxis en Linux/macOS/Windows. Tener el workflow no equivale a que haya pasado.
+
+En la preparacion de los scripts locales comentados se verifico bash -n y sh -n. No se verificaron en esa preparacion resultados de CI, una instalacion completa en los tres OS ni pruebas con ESP32. Documentar resultados reales a medida que se ejecuten.
+
+## Respaldo de cambios
+
+Registrar cambios y documentacion en commits descriptivos y subirlos al repositorio. No incluir tokens, configuracion personal, entornos, caches ni archivos privados de la placa. Las escrituras remotas siguen requiriendo la confirmacion del usuario prevista por las herramientas.
