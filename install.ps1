@@ -43,6 +43,8 @@ function Invoke-Step([string]$Title, [string]$File, [string[]]$CommandArgs) {
     Write-Host "`r[OK] $Title"
 }
 $OldInstallDir = $env:UV_INSTALL_DIR
+# Conserva la politica previa para no alterar la sesion del usuario al terminar.
+$OldPythonDownloads = $env:UV_PYTHON_DOWNLOADS
 try {
     $Ref = 'main'
     if ($env:TUIESP32_REF) { $Ref = $env:TUIESP32_REF }
@@ -59,7 +61,9 @@ try {
         Invoke-Step 'Instalando uv' (Get-Process -Id $PID).Path @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $UvScript)
         $Uv = Join-Path $env:UV_INSTALL_DIR 'uv.exe'
     }
-    Invoke-Step 'Preparando Python y dependencias' $Uv @('tool', 'install', '--python', '3.12', '--python-downloads', 'automatic', '--force', '--reinstall', $Archive)
+    # Habilita la descarga automatica de Python mediante la variable soportada.
+    $env:UV_PYTHON_DOWNLOADS = 'automatic'
+    Invoke-Step 'Preparando Python y dependencias' $Uv @('tool', 'install', '--python', '3.12', '--force', '--reinstall', $Archive)
     Invoke-Step 'Configurando PATH' $Uv @('tool', 'update-shell')
     $Bin = (& $Uv tool dir --bin).Trim()
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo localizar el comando instalado.' }
@@ -71,5 +75,7 @@ try {
 finally {
     if ($script:Child -and -not $script:Child.HasExited) { $script:Child.Kill() }
     $env:UV_INSTALL_DIR = $OldInstallDir
+    # Restaura tambien la politica de descarga incluso si la instalacion falla.
+    $env:UV_PYTHON_DOWNLOADS = $OldPythonDownloads
     Remove-Item -Recurse -Force $Work -ErrorAction SilentlyContinue
 }

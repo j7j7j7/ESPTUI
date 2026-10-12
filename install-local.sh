@@ -109,7 +109,8 @@ else
 fi
 # Instala estas fuentes locales en un entorno aislado; descarga Python si falta.
 # --force/--reinstall reemplazan una instalacion previa de esta misma herramienta.
-step 'Instalando app local, Python y dependencias' "$uv_bin" tool install --python 3.12 --python-downloads automatic --force --reinstall "$src"
+# La politica de descargas se configura por entorno, no como argumento CLI.
+step 'Instalando app local, Python y dependencias' env UV_PYTHON_DOWNLOADS=automatic "$uv_bin" tool install --python 3.12 --force --reinstall "$src"
 # Intenta actualizar los perfiles de shell; no invalida la app si esto falla.
 if ! step 'Configurando PATH' "$uv_bin" tool update-shell; then
     printf 'La app esta instalada. Puedes abrirla con bash run-local.sh.\n' >&2

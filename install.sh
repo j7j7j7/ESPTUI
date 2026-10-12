@@ -72,7 +72,8 @@ else
     step "Instalando uv" env UV_INSTALL_DIR="$HOME/.local/bin" sh "$work/uv.sh"
     uv_bin="$HOME/.local/bin/uv"
 fi
-step "Preparando Python y dependencias" "$uv_bin" tool install --python 3.12 --python-downloads automatic --force --reinstall "$work/source.zip"
+# Habilita descargas por entorno sin enviar un argumento CLI no soportado.
+step "Preparando Python y dependencias" env UV_PYTHON_DOWNLOADS=automatic "$uv_bin" tool install --python 3.12 --force --reinstall "$work/source.zip"
 step "Configurando PATH" "$uv_bin" tool update-shell
 bin_dir=$("$uv_bin" tool dir --bin)
 "$bin_dir/tuiesp32" --version
