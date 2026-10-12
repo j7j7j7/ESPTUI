@@ -541,8 +541,8 @@ class ESP32TUIApp(App):
     def get_busy_screen(self):
         return BusyScreen()
 
-    def start_board_task(self, operation, remote_filename=None):
-        if self.busy:
+    def start_board_task(self, operation, remote_filename=None, force=False):
+        if self.busy and not force:
             self.serial_log.write("Espera a que termine la operación actual.")
             return
         if not self.port:
@@ -584,6 +584,13 @@ class ESP32TUIApp(App):
                     messages.append("Código enviado por Paste Mode; revisa la salida del REPL.")
                 else:
                     if self.ser and self.ser.is_open:
+                        try:
+                            # Detener cualquier script o bucle activo en la placa con Ctrl+C doble
+                            self.ser.write(b"\x03\x03")
+                            time.sleep(0.15)
+                            self.ser.reset_input_buffer()
+                        except Exception:
+                            pass
                         self.ser.close()
                     try:
                         if operation == "upload":
@@ -626,10 +633,14 @@ class ESP32TUIApp(App):
                 self.is_remote_file = True
                 self.current_remote_file = fname
                 self.query_one("#editor-title", Static).update(f"Editor [2] (ESP32): {fname}")
+                self.editor.focus()
             for message in messages:
                 self.serial_log.write(message)
         finally:
-            self.pop_screen()
+            try:
+                self.pop_screen()
+            except Exception:
+                pass
             self.busy = False
 
     def write_repl(self, payload):
@@ -692,15 +703,15 @@ class ESP32TUIApp(App):
             self.serial_log.write(f"Abrir archivo: {error}")
 
     def on_list_view_selected(self, event: ListView.Selected):
-        """Al seleccionar un archivo remoto de la placa, descargarlo para editarlo."""
+        """Al seleccionar un archivo remoto de la placa, detener cualquier script activo y descargarlo de inmediato."""
         if event.list_view.id == "esp32-files" and event.item:
             labels = event.item.query(Label)
             if labels:
                 lbl = labels.first()
                 target_file = str(lbl.render()).strip()
                 if target_file:
-                    self.serial_log.write(f"Cargando archivo de la placa: {target_file}...")
-                    self.start_board_task("get", remote_filename=target_file)
+                    self.serial_log.write(f"Deteniendo ejecución y descargando {target_file}...")
+                    self.start_board_task("get", remote_filename=target_file, force=True)
 
     def action_save_file(self):
         if self.is_remote_file and self.current_remote_file:

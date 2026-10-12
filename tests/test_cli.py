@@ -85,7 +85,7 @@ class UITests(unittest.IsolatedAsyncioTestCase):
                 fake_event = type("FakeSelected", (), {"list_view": app.remote_files, "item": item})()
                 with patch.object(app, "start_board_task") as mock_board_task:
                     app.on_list_view_selected(fake_event)
-                    mock_board_task.assert_called_with("get", remote_filename="boot.py")
+                    mock_board_task.assert_called_with("get", remote_filename="boot.py", force=True)
 
 
 if __name__ == "__main__":
