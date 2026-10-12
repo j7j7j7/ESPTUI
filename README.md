@@ -120,6 +120,12 @@ El tema corresponde al editor, no necesariamente al tema general de Textual. La 
 | `F10` | Colapsar / expandir panel de archivos |
 | `Ctrl+Q` | Salir del IDE |
 
+### Gestión de archivos en la placa (ESP32):
+- **Abrir / Editar:** Clic izquierdo o presionar `Enter` sobre el archivo enfocado.
+- **Menú contextual:** Clic derecho o presionar `m` / `Espacio` para desplegar el modal de acciones (**Abrir**, **Renombrar**, **Eliminar**).
+- **Renombrar en placa:** Presionar `F4` sobre el archivo seleccionado en la lista o desde el menú contextual.
+- **Eliminar de la placa:** Presionar `Supr` (`Delete`) o elegir la opción 3 del menú contextual (solicita confirmación antes de borrar con `ampy rm`).
+
 La CLI inicia mostrando la raíz de la carpeta personal del usuario (`~`) para proteger el código del proyecto, y abre `sketch.py`. Para editar archivos de la placa, haz click o presiona Enter sobre cualquier archivo del listado remoto: detendrá cualquier ejecución previa y se descargará automáticamente al editor. Guardar (`Ctrl+S`) o Subir (`F6`) actualizará el archivo en la placa.
 
 ## Conexión y precauciones

@@ -44,6 +44,7 @@ Atajos homogéneos y coherentes:
 - `F7`: Colapsar / expandir consola REPL.
 - `F10`: Colapsar / expandir panel de archivos.
 - `Ctrl+Q`: Salir del IDE.
+- Archivos de placa (`esp32-files`): Clic izquierdo o `Enter` (abrir y descargar); Clic derecho o tecla `m` / `Espacio` (modal contextual: abrir, renombrar, eliminar); `Supr` (eliminar); `F4` (renombrar).
 
 ## Reglas de concurrencia y serial
 

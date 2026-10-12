@@ -97,6 +97,33 @@ class UITests(unittest.IsolatedAsyncioTestCase):
                     modal_arg = mock_push.call_args[0][0]
                     self.assertIsInstance(modal_arg, FileNameModal)
 
+                # Prueba de modal contextual de archivo remoto
+                from main import RemoteFileActionModal, ConfirmDeleteModal, RemoteFileItem
+                with patch.object(app, "push_screen") as mock_push:
+                    app.action_remote_file_context("main.py")
+                    self.assertTrue(mock_push.called)
+                    self.assertIsInstance(mock_push.call_args[0][0], RemoteFileActionModal)
+
+                # Prueba de modal de confirmacion de eliminacion
+                with patch.object(app, "push_screen") as mock_push:
+                    app.action_delete_remote_file("main.py")
+                    self.assertTrue(mock_push.called)
+                    self.assertIsInstance(mock_push.call_args[0][0], ConfirmDeleteModal)
+
+                # Prueba de item remoto y clic derecho
+                remote_item = RemoteFileItem("test.py")
+                self.assertEqual(remote_item.filename, "test.py")
+                await app.remote_files.append(remote_item)
+                await pilot.pause()
+                fake_mouse = type("FakeMouseDown", (), {
+                    "button": 3,
+                    "stop": lambda *args: None,
+                    "prevent_default": lambda *args: None,
+                })()
+                with patch.object(app, "action_remote_file_context") as mock_context:
+                    remote_item.on_mouse_down(fake_mouse)
+                    mock_context.assert_called_with("test.py")
+
 
 if __name__ == "__main__":
     unittest.main()

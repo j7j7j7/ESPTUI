@@ -14,6 +14,7 @@ from pathlib import Path
 
 import serial
 import serial.tools.list_ports
+from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -210,6 +211,12 @@ class KeybindingsHelpModal(ModalScreen):
   [b yellow]F8[/]            [b red]Parar ejecución[/] (Interrupción Ctrl+C en placa)
   [b yellow]F9[/]            Reinicio suave de la placa (Ctrl+D)
 
+[b cyan]Archivos de la Placa (ESP32):[/]
+  [b yellow]Clic Izq / Enter[/]  Abrir y editar archivo en el editor
+  [b yellow]Clic Der / m[/]      Menú de opciones (Abrir, Renombrar, Eliminar)
+  [b yellow]Supr (Delete)[/]    Eliminar archivo seleccionado de la placa
+  [b yellow]F4[/]            Renombrar archivo seleccionado en la placa
+
 [b cyan]Herramientas y Vistas:[/]
   [b yellow]F1[/] o [b yellow]?[/]        Mostrar esta ventana de ayuda y atajos
   [b yellow]F2[/] o [b yellow]Ctrl+P[/]   Selector rápido de puertos seriales
@@ -281,6 +288,109 @@ class FileNameModal(ModalScreen):
             self.dismiss(val if val else None)
         elif event.button.id == "btn-filename-cancel":
             self.dismiss(None)
+
+
+class RemoteFileActionModal(ModalScreen):
+    """Modal de menú contextual para archivos de la placa (abrir, renombrar, eliminar)."""
+    DEFAULT_CSS = """
+    RemoteFileActionModal { align: center middle; background: $background 80%; }
+    #remote-action-dialog {
+        width: 60;
+        height: auto;
+        border: heavy magenta;
+        background: $surface;
+        padding: 1 2;
+    }
+    #remote-action-title { text-align: center; color: magenta; text-style: bold; margin-bottom: 1; }
+    #remote-action-buttons { height: auto; }
+    #remote-action-buttons Button { width: 100%; margin-bottom: 1; }
+    """
+    BINDINGS = [
+        Binding("escape", "dismiss_action('cancel')", "Cancelar", priority=True),
+        Binding("1", "dismiss_action('open')", "Abrir", priority=True),
+        Binding("2", "dismiss_action('rename')", "Renombrar", priority=True),
+        Binding("3", "dismiss_action('delete')", "Eliminar", priority=True),
+    ]
+
+    def __init__(self, filename: str):
+        super().__init__()
+        self.filename = filename
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="remote-action-dialog"):
+            yield Static(f"Archivo en ESP32: [b cyan]{self.filename}[/]", id="remote-action-title")
+            with Vertical(id="remote-action-buttons"):
+                yield Button("1. Abrir / Editar en IDE", id="btn-action-open", variant="success")
+                yield Button("2. Renombrar en placa", id="btn-action-rename", variant="primary")
+                yield Button("3. Eliminar de placa", id="btn-action-delete", variant="error")
+                yield Button("4. Cancelar (Esc)", id="btn-action-cancel")
+
+    def on_mount(self):
+        self.query_one("#btn-action-open", Button).focus()
+
+    def action_dismiss_action(self, action: str):
+        self.dismiss(action if action != "cancel" else None)
+
+    def on_button_pressed(self, event: Button.Pressed):
+        action_map = {
+            "btn-action-open": "open",
+            "btn-action-rename": "rename",
+            "btn-action-delete": "delete",
+            "btn-action-cancel": None,
+        }
+        self.dismiss(action_map.get(event.button.id))
+
+
+class ConfirmDeleteModal(ModalScreen):
+    """Modal de confirmación para eliminar un archivo de la placa."""
+    DEFAULT_CSS = """
+    ConfirmDeleteModal { align: center middle; background: $background 80%; }
+    #confirm-delete-dialog {
+        width: 62;
+        height: auto;
+        border: heavy red;
+        background: $surface;
+        padding: 1 2;
+    }
+    #confirm-delete-title { text-align: center; color: red; text-style: bold; margin-bottom: 1; }
+    #confirm-delete-text { text-align: center; margin-bottom: 1; }
+    #confirm-delete-actions { height: 3; align: center middle; }
+    #confirm-delete-actions Button { margin: 0 1; }
+    """
+    BINDINGS = [
+        Binding("escape", "dismiss_modal(False)", "Cancelar", priority=True),
+    ]
+
+    def __init__(self, filename: str):
+        super().__init__()
+        self.filename = filename
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="confirm-delete-dialog"):
+            yield Static("¿Eliminar archivo de la placa?", id="confirm-delete-title")
+            yield Static(f"¿Deseas eliminar permanentemente [b yellow]{self.filename}[/] de la flash?", id="confirm-delete-text")
+            with Horizontal(id="confirm-delete-actions"):
+                yield Button("Sí, eliminar", id="btn-confirm-delete", variant="error")
+                yield Button("Cancelar (Esc)", id="btn-cancel-delete", variant="primary")
+
+    def action_dismiss_modal(self, confirmed: bool):
+        self.dismiss(confirmed)
+
+    def on_button_pressed(self, event: Button.Pressed):
+        self.dismiss(event.button.id == "btn-confirm-delete")
+
+
+class RemoteFileItem(ListItem):
+    """Elemento de la lista de archivos de la placa con soporte para clic derecho."""
+    def __init__(self, filename: str):
+        super().__init__(Label(filename))
+        self.filename = filename.strip()
+
+    def on_mouse_down(self, event: events.MouseDown):
+        if event.button == 3:
+            event.stop()
+            event.prevent_default()
+            self.app.action_remote_file_context(self.filename)
 
 
 class ESP32TUIApp(App):
@@ -500,7 +610,7 @@ class ESP32TUIApp(App):
     def get_busy_screen(self):
         return BusyScreen()
 
-    def start_board_task(self, operation, remote_filename=None, force=False):
+    def start_board_task(self, operation, remote_filename=None, new_filename=None, force=False):
         if self.busy and not force:
             self.serial_log.write("Espera a que termine la operación actual.")
             return
@@ -508,7 +618,7 @@ class ESP32TUIApp(App):
             self.serial_log.write("Selecciona un puerto con Ctrl+P para realizar operaciones de placa.")
             return
         self.busy = True
-        content = self.editor.text
+        content = new_filename if operation == "rename" else self.editor.text
         filename = remote_filename if remote_filename else (
             self.current_remote_file if self.is_remote_file else self.current_file.name
         )
@@ -567,6 +677,27 @@ class ESP32TUIApp(App):
                             raw = self.ampy("get", clean_remote)
                             loaded_remote = (clean_remote, raw)
                             messages.append(f"Archivo de placa descargado: {clean_remote}")
+                        elif operation == "rm" and remote_filename:
+                            clean_remote = remote_filename.lstrip("/")
+                            self.ampy("rm", clean_remote)
+                            messages.append(f"Archivo eliminado de la placa: {clean_remote}")
+                            if self.is_remote_file and self.current_remote_file == clean_remote:
+                                self.is_remote_file = False
+                                self.current_remote_file = None
+                        elif operation == "rename" and remote_filename:
+                            old_remote = remote_filename.lstrip("/")
+                            new_remote = (content or "").lstrip("/")
+                            if old_remote and new_remote and old_remote != new_remote:
+                                raw = self.ampy("get", old_remote)
+                                clean_new = Path(new_remote).name or "main.py"
+                                with tempfile.TemporaryDirectory(prefix="esp32-tui-") as directory:
+                                    temporary = Path(directory) / clean_new
+                                    temporary.write_text(raw, encoding="utf-8")
+                                    self.ampy("put", str(temporary), new_remote)
+                                self.ampy("rm", old_remote)
+                                messages.append(f"Archivo renombrado en placa: {old_remote} -> {new_remote}")
+                                if self.is_remote_file and self.current_remote_file == old_remote:
+                                    self.current_remote_file = new_remote
                         files = [f for f in self.ampy("ls").splitlines() if f.strip() and f.strip() != "/"]
                     finally:
                         if not self.stopping.is_set():
@@ -589,7 +720,11 @@ class ESP32TUIApp(App):
         try:
             if files is not None:
                 await self.remote_files.clear()
-                items = [ListItem(Label(name.strip())) for name in files if name.strip()]
+                items = [
+                    RemoteFileItem(name.strip())
+                    for name in files
+                    if name.strip() and name.strip() != "/"
+                ]
                 if items:
                     await self.remote_files.extend(items)
             if loaded_remote:
@@ -599,6 +734,10 @@ class ESP32TUIApp(App):
                 self.current_remote_file = fname
                 self.query_one("#editor-title", Static).update(f"Editor [2] (ESP32): {fname}")
                 self.editor.focus()
+            elif self.is_remote_file and self.current_remote_file:
+                self.query_one("#editor-title", Static).update(f"Editor [2] (ESP32): {self.current_remote_file}")
+            elif not self.is_remote_file:
+                self.query_one("#editor-title", Static).update(f"Editor [2]: {self.current_file.name}")
             for message in messages:
                 self.serial_log.write(message)
         finally:
@@ -670,13 +809,69 @@ class ESP32TUIApp(App):
     def on_list_view_selected(self, event: ListView.Selected):
         """Al seleccionar un archivo remoto de la placa, detener cualquier script activo y descargarlo de inmediato."""
         if event.list_view.id == "esp32-files" and event.item:
-            labels = event.item.query(Label)
-            if labels:
-                lbl = labels.first()
-                target_file = str(lbl.render()).strip()
-                if target_file and target_file != "/":
-                    self.serial_log.write(f"Deteniendo ejecución y descargando {target_file}...")
-                    self.start_board_task("get", remote_filename=target_file, force=True)
+            target_file = getattr(event.item, "filename", None)
+            if not target_file:
+                labels = event.item.query(Label)
+                if labels:
+                    target_file = str(labels.first().render()).strip()
+            if target_file and target_file != "/":
+                self.serial_log.write(f"Deteniendo ejecución y descargando {target_file}...")
+                self.start_board_task("get", remote_filename=target_file, force=True)
+
+    def action_remote_file_context(self, target_file: str):
+        """Abre modal contextual con opciones para el archivo de la placa."""
+        if not target_file or target_file == "/":
+            return
+
+        def on_action_chosen(action):
+            if action == "open":
+                self.serial_log.write(f"Deteniendo ejecución y descargando {target_file}...")
+                self.start_board_task("get", remote_filename=target_file, force=True)
+            elif action == "rename":
+                self.action_rename_remote_file(target_file)
+            elif action == "delete":
+                self.action_delete_remote_file(target_file)
+
+        self.push_screen(RemoteFileActionModal(filename=target_file), on_action_chosen)
+
+    def action_rename_remote_file(self, target_file: str):
+        """Modal para renombrar un archivo existente en la placa."""
+        def on_rename_entered(new_name):
+            if new_name and new_name != target_file:
+                if not new_name.endswith(".py"):
+                    new_name += ".py"
+                self.serial_log.write(f"Renombrando {target_file} a {new_name}...")
+                self.start_board_task("rename", remote_filename=target_file, new_filename=new_name, force=True)
+
+        self.push_screen(FileNameModal(title=f"Renombrar en ESP32: {target_file}", default_name=target_file), on_rename_entered)
+
+    def action_delete_remote_file(self, target_file: str):
+        """Modal de confirmación para eliminar un archivo en la placa."""
+        def on_confirm_delete(confirmed):
+            if confirmed:
+                self.serial_log.write(f"Eliminando {target_file} de la placa...")
+                self.start_board_task("rm", remote_filename=target_file, force=True)
+
+        self.push_screen(ConfirmDeleteModal(filename=target_file), on_confirm_delete)
+
+    def on_key(self, event: events.Key):
+        """Soporte de teclado contextual cuando la lista de la placa está enfocada."""
+        if hasattr(self, "remote_files") and self.remote_files.has_focus:
+            child = self.remote_files.highlighted_child
+            if child and isinstance(child, RemoteFileItem):
+                fname = child.filename
+                if event.key in ("m", "space"):
+                    event.stop()
+                    event.prevent_default()
+                    self.action_remote_file_context(fname)
+                elif event.key == "delete":
+                    event.stop()
+                    event.prevent_default()
+                    self.action_delete_remote_file(fname)
+                elif event.key == "f4":
+                    event.stop()
+                    event.prevent_default()
+                    self.action_rename_remote_file(fname)
 
     def action_save_file(self):
         if self.is_remote_file and self.current_remote_file:
