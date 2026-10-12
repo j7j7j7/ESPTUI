@@ -201,10 +201,12 @@ class KeybindingsHelpModal(ModalScreen):
   [b yellow]Alt+2[/]         Enfocar Editor de código
   [b yellow]Alt+3[/]         Enfocar Consola REPL
 
-[b cyan]Operaciones del Editor y Placa ESP32:[/]
-  [b yellow]Ctrl+S[/]        Guardar archivo actual (localmente o en placa)
-  [b yellow]F5[/]            Ejecutar código en la placa (Paste Mode)
-  [b yellow]F6[/]            Subir archivo actual a la memoria de la placa (ampy put)
+[b cyan]Operaciones de Archivos:[/]
+  [b yellow]Ctrl+N[/]        Crear [b green]Nuevo archivo[/]
+  [b yellow]F4[/]            [b green]Renombrar / Guardar como[/] (cambiar nombre de archivo o en placa)
+  [b yellow]Ctrl+S[/]        [b green]Guardar[/] archivo actual (localmente o en placa)
+  [b yellow]F5[/]            [b green]Ejecutar[/] código en la placa (Paste Mode)
+  [b yellow]F6[/]            [b green]Subir[/] archivo a la memoria de la placa (ampy put)
   [b yellow]F8[/]            [b red]Parar ejecución[/] (Interrupción Ctrl+C en placa)
   [b yellow]F9[/]            Reinicio suave de la placa (Ctrl+D)
 
@@ -228,6 +230,57 @@ class KeybindingsHelpModal(ModalScreen):
     def on_button_pressed(self, event: Button.Pressed):
         if event.button.id == "btn-close-help":
             self.dismiss()
+
+
+class FileNameModal(ModalScreen):
+    """Modal para crear un nuevo archivo o renombrar / guardar como."""
+    DEFAULT_CSS = """
+    FileNameModal { align: center middle; background: $background 80%; }
+    #filename-dialog {
+        width: 60;
+        height: auto;
+        border: heavy cyan;
+        background: $surface;
+        padding: 1 2;
+    }
+    #filename-title { text-align: center; color: cyan; text-style: bold; margin-bottom: 1; }
+    #filename-input { width: 100%; margin-bottom: 1; }
+    #filename-actions { height: 3; align: center middle; }
+    #filename-actions Button { margin: 0 1; }
+    """
+    BINDINGS = [
+        Binding("escape", "dismiss_modal", "Cancelar", priority=True),
+    ]
+
+    def __init__(self, title="Nombre del archivo", default_name="sketch.py"):
+        super().__init__()
+        self.dialog_title = title
+        self.default_name = default_name
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="filename-dialog"):
+            yield Static(self.dialog_title, id="filename-title")
+            yield Input(value=self.default_name, placeholder="nombre_archivo.py", id="filename-input")
+            with Horizontal(id="filename-actions"):
+                yield Button("Aceptar (Enter)", id="btn-filename-accept", variant="success")
+                yield Button("Cancelar (Esc)", id="btn-filename-cancel", variant="warning")
+
+    def on_mount(self):
+        self.query_one("#filename-input", Input).focus()
+
+    def action_dismiss_modal(self):
+        self.dismiss(None)
+
+    def on_input_submitted(self, event: Input.Submitted):
+        val = event.value.strip()
+        self.dismiss(val if val else None)
+
+    def on_button_pressed(self, event: Button.Pressed):
+        if event.button.id == "btn-filename-accept":
+            val = self.query_one("#filename-input", Input).value.strip()
+            self.dismiss(val if val else None)
+        elif event.button.id == "btn-filename-cancel":
+            self.dismiss(None)
 
 
 class ESP32TUIApp(App):
@@ -264,7 +317,9 @@ class ESP32TUIApp(App):
         Binding("2", "focus_panel('editor')", "Editor", priority=False),
         Binding("3", "focus_panel('console')", "Consola", priority=False),
 
-        # Operaciones homogéneas del Editor y la Placa
+        # Operaciones de Archivos, Editor y Placa
+        Binding("ctrl+n", "new_file", "Nuevo", priority=True),
+        Binding("f4", "rename_file", "Renombrar", priority=True),
         Binding("ctrl+s", "save_file", "Guardar", priority=True),
         Binding("f5", "run_code", "Ejecutar", priority=True),
         Binding("f6", "upload_file", "Subir", priority=True),
@@ -305,6 +360,8 @@ class ESP32TUIApp(App):
                 yield Static("Archivos [Alt+1]", classes="title hideable")
                 with Vertical(classes="panel-content hideable"):
                     yield DirectoryTree(str(self.user_home), id="local-files")
+                    yield Button("Nuevo (Ctrl+N)", id="btn-new-file")
+                    yield Button("Renombrar (F4)", id="btn-rename-file")
                     yield Static("ESP32: sin conectar", id="board-title", classes="title")
                     yield ListView(id="esp32-files")
                     yield Button("Refrescar placa", id="refresh-esp32")
@@ -390,9 +447,16 @@ class ESP32TUIApp(App):
     def open_serial(self):
         if not self.port:
             return
-        self.ser = serial.Serial(
-            self.port, self.config["baudrate"], timeout=0.1, write_timeout=2,
-        )
+        for attempt in range(5):
+            try:
+                self.ser = serial.Serial(
+                    self.port, self.config["baudrate"], timeout=0.1, write_timeout=2,
+                )
+                return
+            except (serial.SerialException, OSError):
+                if attempt == 4:
+                    raise
+                time.sleep(0.15)
 
     def read_serial(self):
         while not self.stopping.is_set():
@@ -493,6 +557,7 @@ class ESP32TUIApp(App):
                         files = self.ampy("ls").splitlines()
                     finally:
                         if not self.stopping.is_set():
+                            time.sleep(0.15)
                             try:
                                 self.open_serial()
                                 messages.append(f"Consola reconectada: {self.port}")
@@ -611,6 +676,40 @@ class ESP32TUIApp(App):
         except Exception as error:
             self.serial_log.write(f"Guardar archivo: {error}")
 
+    def action_new_file(self):
+        """Crear un nuevo archivo en blanco."""
+        def on_name_entered(filename):
+            if filename:
+                if not filename.endswith(".py"):
+                    filename += ".py"
+                self.current_file = self.user_home / filename
+                self.is_remote_file = False
+                self.current_remote_file = None
+                self.editor.load_text("# MicroPython\nprint('Nuevo script')\n")
+                self.query_one("#editor-title", Static).update(f"Editor [Alt+2]: {filename}")
+                self.serial_log.write(f"Nuevo archivo local: {filename}")
+                self.editor.focus()
+
+        self.push_screen(FileNameModal(title="Crear Nuevo Archivo", default_name="nuevo_script.py"), on_name_entered)
+
+    def action_rename_file(self):
+        """Renombrar el archivo activo o definir con qué nombre se subirá a la placa."""
+        current_name = self.current_remote_file if self.is_remote_file else self.current_file.name
+        def on_name_entered(filename):
+            if filename:
+                if not filename.endswith(".py"):
+                    filename += ".py"
+                if self.is_remote_file:
+                    self.current_remote_file = filename
+                    self.query_one("#editor-title", Static).update(f"Editor [Alt+2] (ESP32): {filename}")
+                else:
+                    self.current_file = self.current_file.parent / filename
+                    self.query_one("#editor-title", Static).update(f"Editor [Alt+2]: {filename}")
+                self.serial_log.write(f"Archivo activo ahora es: {filename}")
+                self.editor.focus()
+
+        self.push_screen(FileNameModal(title="Renombrar / Guardar Como", default_name=current_name), on_name_entered)
+
     def on_button_pressed(self, event: Button.Pressed):
         actions = {
             "save-btn": self.action_save_file,
@@ -618,6 +717,8 @@ class ESP32TUIApp(App):
             "upload-btn": self.action_upload_file,
             "stop-btn": self.action_stop_execution,
             "refresh-esp32": lambda: self.start_board_task("list"),
+            "btn-new-file": self.action_new_file,
+            "btn-rename-file": self.action_rename_file,
         }
         action = actions.get(event.button.id)
         if action:

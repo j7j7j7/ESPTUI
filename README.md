@@ -107,6 +107,8 @@ El tema corresponde al editor, no necesariamente al tema general de Textual. La 
 | `Alt+1` | Enfocar panel de archivos (local y remoto) |
 | `Alt+2` | Enfocar editor de código |
 | `Alt+3` | Enfocar consola serial REPL |
+| `Ctrl+N` | **Nuevo archivo** (crear script en blanco) |
+| `F4` | **Renombrar / Guardar como** (cambiar nombre de archivo o en placa) |
 | `Ctrl+S` | **Guardar** archivo actual (localmente o en placa) |
 | `F5` | **Ejecutar** código en placa vía Paste Mode |
 | `F6` | **Subir** archivo actual a la placa (`ampy put`) |

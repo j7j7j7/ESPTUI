@@ -82,6 +82,21 @@ class UITests(unittest.IsolatedAsyncioTestCase):
                     app.on_list_view_selected(fake_event)
                     mock_board_task.assert_called_with("get", remote_filename="boot.py", force=True)
 
+                # Prueba de creacion de archivo
+                from main import FileNameModal
+                with patch.object(app, "push_screen") as mock_push:
+                    app.action_new_file()
+                    self.assertTrue(mock_push.called)
+                    modal_arg = mock_push.call_args[0][0]
+                    self.assertIsInstance(modal_arg, FileNameModal)
+
+                # Prueba de renombrado de archivo
+                with patch.object(app, "push_screen") as mock_push:
+                    app.action_rename_file()
+                    self.assertTrue(mock_push.called)
+                    modal_arg = mock_push.call_args[0][0]
+                    self.assertIsInstance(modal_arg, FileNameModal)
+
 
 if __name__ == "__main__":
     unittest.main()

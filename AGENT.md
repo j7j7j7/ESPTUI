@@ -32,6 +32,8 @@ Tres paneles: archivos locales (`~` por defecto) y listado remoto de placa, edit
 
 Atajos homogéneos y coherentes:
 - `Alt+1` / `Alt+2` / `Alt+3`: Enfocar panel de Archivos / Editor / Consola REPL.
+- `Ctrl+N`: Crear nuevo archivo / script limpio.
+- `F4`: Renombrar archivo activo o definir nombre de destino en placa.
 - `Ctrl+S`: Guardar archivo actual (localmente o en placa si fue descargado).
 - `F5`: Enviar y ejecutar código en la placa (Paste Mode).
 - `F6`: Subir archivo a la memoria flash de la placa (`ampy put`).
