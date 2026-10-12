@@ -36,10 +36,10 @@ Esta guia explica la implementacion actual. Los scripts locales tienen comentari
 - on_button_pressed: asigna cada ID de boton a la accion correspondiente.
 - on_unmount: activa parada y cierra la conexion si sigue abierta. No hace join del hilo ni elimina toda carrera posible durante el cierre.
 
-## tuiesp32.py: CLI y extension
+## esptui.py (y tuiesp32.py): CLI y extension
 
-- VERSION/LOGO/DEFAULTS: version mostrada, arte ASCII y valores por defecto. La version debe coordinarse con pyproject.toml.
-- config_path: usa platformdirs para no guardar configuracion dentro del paquete instalado.
+- VERSION/LOGO/DEFAULTS: version mostrada, arte ASCII de ESPTUI y valores por defecto.
+- config_dir/config_path: usa la carpeta global oculta `~/.esptui/config.json` con soporte de migracion retrocompatible para instalaciones previas.
 - read_config: mezcla el JSON de usuario con defaults y valida puerto, baudrate y tipo del tema. El nombre del tema se valida finalmente al construir el editor.
 - AsciiSpinner.on_mount: inicializa el cuadro y crea un temporizador de 0.1 segundos. tick rota cuatro caracteres y actualiza Static.
 - AsciiBusyScreen.compose: agrupa logo/spinner dentro de un modal.

@@ -1,6 +1,6 @@
 """ESP32 terminal IDE para MicroPython (ESPTUI).
 Instalación: python -m pip install 'textual[syntax]' pyserial adafruit-ampy
-Ejecución: python main.py o tuiesp32
+Ejecución: python main.py o esptui (alias: tuiesp32)
 Editor de código estándar, selección rápida de puertos seriales,
 navegación homogénea de paneles y edición de archivos locales y remotos.
 """

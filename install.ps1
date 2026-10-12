@@ -47,13 +47,14 @@ $OldInstallDir = $env:UV_INSTALL_DIR
 $OldPythonDownloads = $env:UV_PYTHON_DOWNLOADS
 try {
     $Ref = 'main'
-    if ($env:TUIESP32_REF) { $Ref = $env:TUIESP32_REF }
+    if ($env:ESPTUI_REF) { $Ref = $env:ESPTUI_REF }
+    elseif ($env:TUIESP32_REF) { $Ref = $env:TUIESP32_REF }
     $Archive = Join-Path $Work 'source.zip'
-    Write-Host '[...] Descargando TUIESP32'
-    try { Get-Download "https://github.com/j7j7j7/TUIESP32/archive/refs/heads/$Ref.zip" $Archive }
+    Write-Host '[...] Descargando ESPTUI'
+    try { Get-Download "https://github.com/j7j7j7/ESPTUI/archive/refs/heads/$Ref.zip" $Archive }
     catch {
-        try { Get-Download "https://api.github.com/repos/j7j7j7/TUIESP32/zipball/$Ref" $Archive }
-        catch { throw 'No se pudo descargar el repositorio TUIESP32.' }
+        try { Get-Download "https://api.github.com/repos/j7j7j7/ESPTUI/zipball/$Ref" $Archive }
+        catch { throw 'No se pudo descargar el repositorio ESPTUI.' }
     }
     $UvCommand = Get-Command uv -ErrorAction SilentlyContinue
     if ($UvCommand) { $Uv = $UvCommand.Source }
@@ -70,10 +71,10 @@ try {
     Invoke-Step 'Configurando PATH' $Uv @('tool', 'update-shell')
     $Bin = (& $Uv tool dir --bin).Trim()
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo localizar el comando instalado.' }
-    & (Join-Path $Bin 'tuiesp32.exe') --version
+    & (Join-Path $Bin 'esptui.exe') --version
     if ($LASTEXITCODE -ne 0) { throw 'Fallo la verificacion del comando.' }
-    Write-Host 'Listo. Reabre la terminal y ejecuta: tuiesp32'
-    Write-Host 'Actualiza repitiendo el instalador. Desinstala con: uv tool uninstall tuiesp32'
+    Write-Host 'Listo. Reabre la terminal y ejecuta: esptui (o tuiesp32)'
+    Write-Host 'Actualiza repitiendo el instalador. Desinstala con: uv tool uninstall esptui'
 }
 finally {
     if ($script:Child -and -not $script:Child.HasExited) { $script:Child.Kill() }

@@ -15,4 +15,4 @@ fi
 # Resuelve la carpeta efectiva de comandos administrados por uv.
 bin_dir=$("$uv_bin" tool dir --bin)
 # Reemplaza este proceso por la app y conserva todos sus argumentos.
-exec "$bin_dir/tuiesp32" "$@"
+exec "$bin_dir/esptui" "$@"

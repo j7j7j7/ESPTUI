@@ -14,7 +14,7 @@ fi
 # Obtiene la carpeta del script, incluso cuando se ejecuta desde otra carpeta.
 src=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # Comprueba los archivos necesarios para construir e instalar el paquete.
-for required in pyproject.toml main.py tuiesp32.py README.md; do
+for required in pyproject.toml main.py esptui.py tuiesp32.py README.md; do
     [[ -f "$src/$required" ]] || { printf 'Falta %s junto al instalador.\n' "$required" >&2; exit 1; }
 done
 # El delimitador entre comillas conserva literalmente el logo ASCII.
@@ -118,9 +118,9 @@ fi
 # Pregunta a uv donde dejo los comandos, en vez de asumir su ubicacion.
 bin_dir=$("$uv_bin" tool dir --bin)
 # Verifica que el comando instalado pueda iniciar y mostrar su version.
-step 'Verificando comando' "$bin_dir/tuiesp32" --version
+step 'Verificando comando' "$bin_dir/esptui" --version
 # Informa las formas de abrir y reinstalar la app sin lanzarla automaticamente.
-printf '\nInstalacion lista. Reabre la terminal y ejecuta: tuiesp32\n'
+printf '\nInstalacion lista. Reabre la terminal y ejecuta: esptui (o tuiesp32)\n'
 printf 'Sin reabrir la terminal: bash run-local.sh\n'
-printf 'Comando directo: "%s/tuiesp32"\n' "$bin_dir"
+printf 'Comando directo: "%s/esptui"\n' "$bin_dir"
 printf 'Actualizacion local: vuelve a ejecutar bash install-local.sh\n'

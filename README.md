@@ -1,6 +1,6 @@
-# ESPTUI (tuiesp32)
+# ESPTUI
 
-IDE ligero de terminal para MicroPython en microcontroladores ESP32 y ESP8266. Construido con Python, Textual, pyserial y ampy.
+IDE ligero de terminal para MicroPython en microcontroladores ESP32, ESP8266 y microcontroladores compatibles. Construido con Python, Textual, pyserial y ampy.
 
 ```text
 ███████╗███████╗██████╗ ████████╗██╗   ██╗██╗
@@ -18,6 +18,7 @@ IDE ligero de terminal para MicroPython en microcontroladores ESP32 y ESP8266. C
 - **Ejecución rápida:** Ejecución al vuelo en RAM vía Paste Mode (`F5`) o subida permanente a flash (`F6`).
 - **Control de ejecución:** Parada inmediata con interrupción doble (`F8` / Ctrl+C) y soft reset (`F9` / Ctrl+D).
 - **Copiar errores:** Selección de texto con ratón y copiado al portapapeles del sistema (`Ctrl+C` o clic derecho).
+- **Configuración limpia:** Carpeta global oculta en `~/.esptui/` para configuraciones sin ensuciar tus directorios de trabajo.
 
 ---
 
@@ -34,25 +35,26 @@ Funciona con cualquier microcontrolador que ejecute **MicroPython**:
 
 ### Linux / macOS
 ```bash
-curl -fsSL https://raw.githubusercontent.com/j7j7j7/TUIESP32/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/j7j7j7/ESPTUI/main/install.sh | sh
 ```
 
 ### Windows (PowerShell)
 ```powershell
-irm https://raw.githubusercontent.com/j7j7j7/TUIESP32/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/j7j7j7/ESPTUI/main/install.ps1 | iex
 ```
 
 ### Desde fuentes locales
 ```bash
-git clone https://github.com/j7j7j7/TUIESP32.git
-cd TUIESP32
+git clone https://github.com/j7j7j7/ESPTUI.git
+cd ESPTUI
 bash install-local.sh
 ```
 
 Una vez instalado, abre tu terminal y ejecuta:
 ```bash
-tuiesp32
+esptui
 ```
+*(El comando `tuiesp32` se mantiene disponible como alias por compatibilidad)*
 
 ---
 
@@ -86,10 +88,10 @@ tuiesp32
 ## Parámetros CLI
 
 ```bash
-tuiesp32 --port /dev/ttyUSB0     # Especificar puerto serial directo
-tuiesp32 --baudrate 115200       # Velocidad en baudios (por defecto 115200)
-tuiesp32 --list-ports            # Listar puertos detectados
-tuiesp32 --init-config           # Generar archivo de configuración
+esptui --port /dev/ttyUSB0     # Especificar puerto serial directo
+esptui --baudrate 115200       # Velocidad en baudios (por defecto 115200)
+esptui --list-ports            # Listar puertos detectados
+esptui --init-config           # Generar archivo de configuración en ~/.esptui/config.json
 ```
 
 ---

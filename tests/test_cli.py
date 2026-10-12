@@ -7,10 +7,24 @@ from pathlib import Path
 from unittest.mock import patch
 
 from textual.widgets import TextArea
-from tuiesp32 import AsciiBusyScreen, AsciiSpinner, DEFAULTS, TerminalIDE, read_config
+from esptui import (
+    AsciiBusyScreen,
+    AsciiSpinner,
+    DEFAULTS,
+    TerminalIDE,
+    config_dir,
+    config_path,
+    read_config,
+)
+import tuiesp32
 
 
 class ConfigTests(unittest.TestCase):
+    def test_config_path_default(self):
+        self.assertEqual(config_dir(), Path.home() / ".esptui")
+        # tuiesp32 alias shares functions and defaults
+        self.assertEqual(tuiesp32.config_dir(), Path.home() / ".esptui")
+
     def test_config_validation(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "config.json"
@@ -24,7 +38,7 @@ class ConfigTests(unittest.TestCase):
     def test_ampy_uses_current_interpreter(self):
         app = TerminalIDE(DEFAULTS.copy())
         app.port = "test-port"
-        with patch("tuiesp32.subprocess.run") as run:
+        with patch("esptui.subprocess.run") as run:
             run.return_value = subprocess.CompletedProcess([], 0, "main.py\n", "")
             self.assertEqual(app.ampy("ls"), "main.py\n")
             command = run.call_args.args[0]

@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from textual.widgets import RichLog
 from main import ESP32TUIApp
-from tuiesp32 import DEFAULTS, TerminalIDE
+from esptui import DEFAULTS, TerminalIDE
 
 
 class LogWidgetTests(unittest.IsolatedAsyncioTestCase):

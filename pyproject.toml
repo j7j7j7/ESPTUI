@@ -3,15 +3,16 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tuiesp32"
-version = "0.1.0"
-description = "Terminal IDE for ESP32 MicroPython"
+name = "esptui"
+version = "0.2.0"
+description = "Terminal IDE for MicroPython on ESP32 and microcontrollers (ESPTUI)"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["textual[syntax]>=0.80", "pyserial>=3.5", "adafruit-ampy>=1.1.0", "platformdirs>=4"]
 
 [project.scripts]
-tuiesp32 = "tuiesp32:main"
+esptui = "esptui:main"
+tuiesp32 = "esptui:main"
 
 [tool.setuptools]
-py-modules = ["main", "tuiesp32"]
+py-modules = ["main", "esptui", "tuiesp32"]

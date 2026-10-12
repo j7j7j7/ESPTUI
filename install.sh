@@ -60,10 +60,10 @@ step() {
         return "$status"
     fi
 }
-ref=${TUIESP32_REF:-main}
-if ! step "Descargando TUIESP32" fetch "https://github.com/j7j7j7/TUIESP32/archive/refs/heads/$ref.tar.gz" "$work/source.tar.gz"; then
-    if ! step "Descargando TUIESP32 (fallback)" fetch "https://api.github.com/repos/j7j7j7/TUIESP32/zipball/$ref" "$work/source.tar.gz"; then
-        echo "No se pudo descargar el repositorio TUIESP32." >&2
+ref=${ESPTUI_REF:-${TUIESP32_REF:-main}}
+if ! step "Descargando ESPTUI" fetch "https://github.com/j7j7j7/ESPTUI/archive/refs/heads/$ref.tar.gz" "$work/source.tar.gz"; then
+    if ! step "Descargando ESPTUI (fallback)" fetch "https://api.github.com/repos/j7j7j7/ESPTUI/zipball/$ref" "$work/source.tar.gz"; then
+        echo "No se pudo descargar el repositorio ESPTUI." >&2
         exit 1
     fi
 fi
@@ -78,6 +78,6 @@ fi
 step "Preparando Python y dependencias" env UV_PYTHON_DOWNLOADS=automatic "$uv_bin" tool install --python 3.12 --force --reinstall "$work/source.tar.gz"
 step "Configurando PATH" "$uv_bin" tool update-shell
 bin_dir=$("$uv_bin" tool dir --bin)
-"$bin_dir/tuiesp32" --version
-printf '\nListo. Reabre la terminal y ejecuta: tuiesp32\n'
-printf 'Actualiza repitiendo el instalador. Desinstala con: uv tool uninstall tuiesp32\n'
+"$bin_dir/esptui" --version
+printf '\nListo. Reabre la terminal y ejecuta: esptui (o tuiesp32)\n'
+printf 'Actualiza repitiendo el instalador. Desinstala con: uv tool uninstall esptui\n'
