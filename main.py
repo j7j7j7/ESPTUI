@@ -151,12 +151,13 @@ class ESP32TUIApp(App):
 
     def on_mount(self):
         self.editor = self.query_one("#code-editor", TextArea)
-        self.log = self.query_one("#serial-log", RichLog)
+        # App.log pertenece a Textual; el widget REPL necesita un nombre propio.
+        self.serial_log = self.query_one("#serial-log", RichLog)
         self.remote_files = self.query_one("#esp32-files", ListView)
         try:
             self.port = find_port(self.config["port"])
         except Exception as error:
-            self.log.write(f"Conexion: {error}")
+            self.serial_log.write(f"Conexion: {error}")
             return
         self.query_one("#board-title", Static).update(f"ESP32: {self.port}")
         self.reader = threading.Thread(target=self.read_serial, daemon=True)
@@ -166,7 +167,7 @@ class ESP32TUIApp(App):
     def log_from_thread(self, text):
         if not self.stopping.is_set():
             try:
-                self.call_from_thread(self.log.write, text)
+                self.call_from_thread(self.serial_log.write, text)
             except RuntimeError:
                 pass
 
@@ -201,10 +202,10 @@ class ESP32TUIApp(App):
 
     def start_board_task(self, operation):
         if self.busy:
-            self.log.write("Espera a que termine la operacion actual.")
+            self.serial_log.write("Espera a que termine la operacion actual.")
             return
         if not self.port:
-            self.log.write("Configura un puerto y reinicia la aplicacion.")
+            self.serial_log.write("Configura un puerto y reinicia la aplicacion.")
             return
         self.busy = True
         content = self.editor.text
@@ -272,14 +273,14 @@ class ESP32TUIApp(App):
                 if items:
                     await self.remote_files.extend(items)
             for message in messages:
-                self.log.write(message)
+                self.serial_log.write(message)
         finally:
             self.pop_screen()
             self.busy = False
 
     def write_repl(self, payload):
         if self.busy:
-            self.log.write("Puerto ocupado por otra operacion.")
+            self.serial_log.write("Puerto ocupado por otra operacion.")
             return False
         try:
             with self.serial_lock:
@@ -288,13 +289,13 @@ class ESP32TUIApp(App):
                 self.ser.write(payload)
             return True
         except Exception as error:
-            self.log.write(f"Escritura serial: {error}")
+            self.serial_log.write(f"Escritura serial: {error}")
             return False
 
     def on_input_submitted(self, event: Input.Submitted):
         if event.input.id == "serial-input":
             if self.write_repl((event.value + "\r\n").encode("utf-8")):
-                self.log.write(f">>> {event.value}")
+                self.serial_log.write(f">>> {event.value}")
                 event.input.value = ""
 
     def action_send_interrupt(self):
@@ -322,14 +323,14 @@ class ESP32TUIApp(App):
             self.current_file = path
             self.query_one("#editor-title", Static).update(f"Editor: {path.name}")
         except Exception as error:
-            self.log.write(f"Abrir archivo: {error}")
+            self.serial_log.write(f"Abrir archivo: {error}")
 
     def action_save_file(self):
         try:
             self.current_file.write_text(self.editor.text, encoding="utf-8")
-            self.log.write(f"Guardado: {self.current_file}")
+            self.serial_log.write(f"Guardado: {self.current_file}")
         except Exception as error:
-            self.log.write(f"Guardar archivo: {error}")
+            self.serial_log.write(f"Guardar archivo: {error}")
 
     def on_button_pressed(self, event: Button.Pressed):
         actions = {

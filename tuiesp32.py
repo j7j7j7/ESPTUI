@@ -91,10 +91,10 @@ class TerminalIDE(base.ESP32TUIApp):
 
     def start_board_task(self, operation):
         if self.busy:
-            self.log.write("Espera a que termine la operacion actual.")
+            self.serial_log.write("Espera a que termine la operacion actual.")
             return
         if not self.port:
-            self.log.write("Configura un puerto y reinicia la aplicacion.")
+            self.serial_log.write("Configura un puerto y reinicia la aplicacion.")
             return
         self.busy = True
         content, filename = self.editor.text, self.current_file.name
