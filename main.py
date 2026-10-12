@@ -555,16 +555,19 @@ class ESP32TUIApp(App):
                     time.sleep(0.25)
                     try:
                         if operation == "upload":
+                            clean_filename = Path(filename).name or "main.py"
+                            dest_filename = filename.lstrip("/") or "main.py"
                             with tempfile.TemporaryDirectory(prefix="esp32-tui-") as directory:
-                                temporary = Path(directory) / filename
+                                temporary = Path(directory) / clean_filename
                                 temporary.write_text(content, encoding="utf-8")
-                                self.ampy("put", str(temporary), filename)
-                            messages.append(f"Archivo subido a placa: {filename}")
+                                self.ampy("put", str(temporary), dest_filename)
+                            messages.append(f"Archivo subido a placa: {dest_filename}")
                         elif operation == "get" and remote_filename:
-                            raw = self.ampy("get", remote_filename)
-                            loaded_remote = (remote_filename, raw)
-                            messages.append(f"Archivo de placa descargado: {remote_filename}")
-                        files = self.ampy("ls").splitlines()
+                            clean_remote = remote_filename.lstrip("/") or "main.py"
+                            raw = self.ampy("get", clean_remote)
+                            loaded_remote = (clean_remote, raw)
+                            messages.append(f"Archivo de placa descargado: {clean_remote}")
+                        files = [f for f in self.ampy("ls").splitlines() if f.strip() and f.strip() != "/"]
                     finally:
                         if not self.stopping.is_set():
                             time.sleep(0.25)
@@ -671,7 +674,7 @@ class ESP32TUIApp(App):
             if labels:
                 lbl = labels.first()
                 target_file = str(lbl.render()).strip()
-                if target_file:
+                if target_file and target_file != "/":
                     self.serial_log.write(f"Deteniendo ejecución y descargando {target_file}...")
                     self.start_board_task("get", remote_filename=target_file, force=True)
 
