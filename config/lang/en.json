@@ -1,0 +1,123 @@
+{
+  "_meta": {
+    "code": "en",
+    "name": "English"
+  },
+  "top_bar": {
+    "language_label": "🌐 Language:"
+  },
+  "sidebar": {
+    "title": "Local & board files [Alt+1]",
+    "board_disconnected": "ESP32: disconnected",
+    "board_connected": "ESP32: {port}",
+    "refresh_board": "Refresh board",
+    "collapsed_label": "F\nI\nL\nE\nS"
+  },
+  "editor": {
+    "title": "Code editor [Alt+2]: {filename}",
+    "title_esp32": "Code editor [Alt+2] (ESP32): {filename}",
+    "default_code": "# MicroPython\nprint('Hello ESP32')\n",
+    "new_script_code": "# MicroPython\nprint('New script')\n",
+    "save": "Save (Ctrl+S)",
+    "run": "Run (F5)",
+    "upload": "Upload (F6)",
+    "stop": "Stop (F8)"
+  },
+  "console": {
+    "title": "Serial REPL console [Alt+3]",
+    "copy": "Copy (Ctrl+C)",
+    "clear": "Clear",
+    "placeholder": "REPL command...",
+    "collapsed_label": "R\nE\nP\nL"
+  },
+  "footer": {
+    "files": "Files",
+    "editor": "Editor",
+    "console": "Console",
+    "copy_console": "Copy console",
+    "new_file": "New file",
+    "rename": "Rename",
+    "save": "Save",
+    "run": "Run",
+    "upload": "Upload",
+    "stop": "Stop",
+    "reset": "Reset",
+    "help": "Help",
+    "ports": "Ports",
+    "quit": "Quit"
+  },
+  "modals": {
+    "busy": {
+      "processing": "Processing on board..."
+    },
+    "port_select": {
+      "title": "Select Serial Port (ESPTUI)",
+      "subtitle": "Press port number [1-9] or select with Enter:",
+      "refresh": "Refresh (R)",
+      "cancel": "Continue without connection (Esc)",
+      "no_ports": "No serial ports detected. Connect board and press 'R'.",
+      "device": "Serial device"
+    },
+    "keybindings": {
+      "title": "Keyboard Shortcuts — ESPTUI",
+      "close": "Got it / Close (Esc)",
+      "info": "[b cyan]Panel Navigation:[/\n  [b yellow]Alt+1[/]         Focus Local & Board files panel\n  [b yellow]Alt+2[/]         Focus Code Editor\n  [b yellow]Alt+3[/]         Focus REPL Console\n\n[b cyan]File Operations:[/\n  [b yellow]Ctrl+N[/]        Create [b green]New file[/]\n  [b yellow]F4[/]            [b green]Rename / Save as[/] (rename local or board file)\n  [b yellow]Ctrl+S[/]        [b green]Save[/] current file (locally or on board)\n  [b yellow]F5[/]            [b green]Run[/] code on board (Paste Mode)\n  [b yellow]F6[/]            [b green]Upload[/] file to board memory (ampy put)\n  [b yellow]F8[/]            [b red]Stop execution[/] (Ctrl+C interrupt on board)\n  [b yellow]F9[/]            Soft reset board (Ctrl+D)\n\n[b cyan]Board Files (ESP32):[/\n  [b yellow]Left Click / Enter[/]  Open & edit file in editor\n  [b yellow]Right Click / m[/]     Options menu (Open, Rename, Delete)\n  [b yellow]Del (Delete)[/]       Delete selected file from board\n  [b yellow]F4[/]                 Rename selected file on board\n\n[b cyan]Tools & Views:[/\n  [b yellow]Ctrl+C[/]        [b green]Copy[/] selection or console log to clipboard\n  [b yellow]F1[/] or [b yellow]?[/]        Show this help and shortcuts window\n  [b yellow]F2[/] or [b yellow]Ctrl+P[/]   Quick serial port selector\n  [b yellow]F7[/]            Collapse / expand REPL console\n  [b yellow]F10[/]           Collapse / expand files panel\n  [b yellow]Ctrl+Q[/]        Quit IDE"
+    },
+    "file_name": {
+      "default_title": "File Name",
+      "title_new": "Create New File",
+      "title_rename": "Rename / Save As",
+      "title_rename_esp32": "Rename on ESP32: {filename}",
+      "accept": "Accept (Enter)",
+      "cancel": "Cancel (Esc)",
+      "placeholder": "filename.py",
+      "default_new_name": "sketch.py"
+    },
+    "remote_file_action": {
+      "title": "File on ESP32: [b cyan]{filename}[/]",
+      "open": "1. Open / Edit in IDE",
+      "rename": "2. Rename on board",
+      "delete": "3. Delete from board",
+      "cancel": "4. Cancel (Esc)"
+    },
+    "confirm_delete": {
+      "title": "Delete file from board?",
+      "text": "Permanently delete [b yellow]{filename}[/] from flash memory?",
+      "confirm": "Yes, delete",
+      "cancel": "Cancel (Esc)"
+    }
+  },
+  "messages": {
+    "no_port_working": "Working without connected port. Use Ctrl+P to select one.",
+    "connected": "Connected to port: {port}",
+    "connection_error": "Connection to {port}: {error}",
+    "serial_read_error": "Serial read: {error}",
+    "wait_busy": "Wait for current operation to finish.",
+    "select_port_first": "Select a port with Ctrl+P to perform board operations.",
+    "code_sent": "Code sent via Paste Mode; check REPL output.",
+    "uploaded": "File uploaded to board: {filename}",
+    "downloaded": "Board file downloaded: {filename}",
+    "deleted": "File deleted from board: {filename}",
+    "renamed": "File renamed on board: {old} -> {new}",
+    "reconnected": "Console reconnected: {port}",
+    "reconnect_failed": "Could not reconnect: {error}",
+    "operation_error": "Operation {operation}: {error}",
+    "port_busy": "Port busy with another operation.",
+    "not_connected": "Serial console is not connected",
+    "stopping": "[STOP] Stopping execution on board (Ctrl+C)...",
+    "resetting": "[RESET] Soft reset (Ctrl+D)...",
+    "local_opened": "Opened local file: {filename}",
+    "open_error": "Open file: {error}",
+    "downloading": "Stopping execution and downloading {filename}...",
+    "renaming": "Renaming {old} to {new}...",
+    "deleting": "Deleting {filename} from board...",
+    "saved_local": "Saved locally: {path}",
+    "save_error": "Save file: {error}",
+    "new_file_created": "New local file: {filename}",
+    "active_file_changed": "Active file is now: {filename}",
+    "clipboard_selected": "[CLIPBOARD] Selected text copied.",
+    "clipboard_console": "[CLIPBOARD] Console copied to clipboard.",
+    "clipboard_empty": "[CLIPBOARD] No text to copy.",
+    "language_changed": "Language changed to: {lang}"
+  }
+}

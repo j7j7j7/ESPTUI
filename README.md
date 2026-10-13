@@ -18,6 +18,7 @@ IDE ligero de terminal para MicroPython en microcontroladores ESP32, ESP8266 y m
 - **Ejecución rápida:** Ejecución al vuelo en RAM vía Paste Mode (`F5`) o subida permanente a flash (`F6`).
 - **Control de ejecución:** Parada inmediata con interrupción doble (`F8` / Ctrl+C) y soft reset (`F9` / Ctrl+D).
 - **Copiar errores:** Selección de texto con ratón y copiado al portapapeles del sistema (`Ctrl+C` o clic derecho).
+- **Multilenguaje (i18n):** Interfaz por defecto en inglés (`en.json`) con soporte español (`es.json`). Selector dinámico en el menú superior cuando hay más de 1 idioma en `config/lang/`.
 - **Configuración limpia:** Carpeta global oculta en `~/.esptui/` para configuraciones sin ensuciar tus directorios de trabajo.
 
 ---
@@ -75,6 +76,7 @@ esptui
 | `Ctrl+C` | Copiar selección o registro de consola al portapapeles |
 | `F1` / `?` | Abrir ventana de ayuda con todos los atajos |
 | `F2` / `Ctrl+P` | Selector y filtro de puertos seriales |
+| `F3` | Alternar idioma de interfaz (si hay > 1 disponible) |
 | `Ctrl+Q` | Salir de ESPTUI |
 
 ### En la lista de archivos de la placa:
@@ -90,6 +92,7 @@ esptui
 ```bash
 esptui --port /dev/ttyUSB0     # Especificar puerto serial directo
 esptui --baudrate 115200       # Velocidad en baudios (por defecto 115200)
+esptui --lang es               # Seleccionar idioma de inicio (ej: en, es)
 esptui --list-ports            # Listar puertos detectados
 esptui --init-config           # Generar archivo de configuración en ~/.esptui/config.json
 ```

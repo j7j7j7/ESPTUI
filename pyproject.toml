@@ -15,4 +15,7 @@ esptui = "esptui:main"
 tuiesp32 = "esptui:main"
 
 [tool.setuptools]
-py-modules = ["main", "esptui", "tuiesp32"]
+py-modules = ["main", "esptui", "tuiesp32", "i18n"]
+
+[tool.setuptools.package-data]
+"*" = ["config/lang/*.json"]

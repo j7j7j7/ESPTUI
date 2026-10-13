@@ -22,7 +22,7 @@ LOGO = r"""███████╗███████╗██████╗
 ██╔══╝  ╚════██║██╔═══╝    ██║   ██║   ██║██║
 ███████╗███████║██║        ██║   ╚██████╔╝██║
 ╚══════╝╚══════╝╚═╝        ╚═╝    ╚═════╝ ╚═╝"""
-DEFAULTS = {"port": "AUTO", "baudrate": 115200, "theme": "monokai"}
+DEFAULTS = {"port": "AUTO", "baudrate": 115200, "theme": "monokai", "lang": "en"}
 
 
 def config_dir() -> Path:
@@ -56,6 +56,8 @@ def read_config(path: Path):
         raise ValueError("port debe ser AUTO o un puerto serial")
     if not isinstance(result["theme"], str):
         raise ValueError("theme debe ser un nombre de tema")
+    if "lang" in result and not isinstance(result["lang"], str):
+        raise ValueError("lang debe ser un codigo de idioma valido")
     return result
 
 
@@ -110,6 +112,8 @@ class TerminalIDE(base.ESP32TUIApp):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        if "lang" in config:
+            self.i18n.set_language(config["lang"])
         self.current_file = self.user_home / "sketch.py"
 
     def compose(self):
@@ -118,7 +122,9 @@ class TerminalIDE(base.ESP32TUIApp):
 
     def on_mount(self):
         super().on_mount()
-        self.query_one("#editor-title", Static).update("Editor de código [Alt+2]: sketch.py")
+        self.query_one("#editor-title", Static).update(
+            self.t("editor.title", filename="sketch.py", default="Editor de código [Alt+2]: sketch.py")
+        )
 
     def get_busy_screen(self):
         return AsciiBusyScreen()
@@ -151,6 +157,7 @@ def main():
     parser.add_argument("--list-ports", action="store_true")
     parser.add_argument("--port")
     parser.add_argument("--baudrate", type=int)
+    parser.add_argument("--lang", help="Idioma de la interfaz (ej: en, es)")
     args = parser.parse_args()
     path = args.config or config_path()
     if args.init_config:
@@ -185,6 +192,8 @@ def main():
             if args.baudrate <= 0:
                 raise ValueError("baudrate debe ser positivo")
             config["baudrate"] = args.baudrate
+        if args.lang:
+            config["lang"] = args.lang
         TerminalIDE(config).run()
     except (OSError, ValueError) as error:
         parser.error(str(error))

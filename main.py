@@ -22,8 +22,9 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import (
     Button, DirectoryTree, Footer, Header, Input, Label, ListItem,
-    ListView, LoadingIndicator, RichLog, Static, TextArea,
+    ListView, LoadingIndicator, RichLog, Select, Static, TextArea,
 )
+from i18n import get_i18n
 
 SERIAL_KEYWORDS = (
     "cp210", "ch340", "ch341", "ftdi", "usb-serial",
@@ -32,7 +33,7 @@ SERIAL_KEYWORDS = (
 
 
 def load_config():
-    config = {"port": "AUTO", "baudrate": 115200, "theme": "monokai"}
+    config = {"port": "AUTO", "baudrate": 115200, "theme": "monokai", "lang": "en"}
     path = Path(__file__).resolve().parent / "config.json"
     if path.exists():
         loaded = json.loads(path.read_text(encoding="utf-8"))
@@ -44,6 +45,8 @@ def load_config():
         raise ValueError("baudrate debe ser positivo")
     if not isinstance(config["port"], str) or not config["port"].strip():
         raise ValueError("port debe ser AUTO o un puerto serial")
+    if "lang" in config and not isinstance(config["lang"], str):
+        raise ValueError("lang debe ser un código de idioma válido")
     return config
 
 
@@ -76,6 +79,13 @@ def find_port(configured):
     raise RuntimeError("No se detectaron puertos seriales")
 
 
+def app_t(screen, key: str, default: str | None = None, **kwargs) -> str:
+    """Helper to translate strings within modal screens using the active app instance."""
+    if hasattr(screen, "app") and hasattr(screen.app, "t"):
+        return screen.app.t(key, default=default, **kwargs)
+    return default if default is not None else key
+
+
 class BusyScreen(ModalScreen):
     DEFAULT_CSS = """
     BusyScreen { align: center middle; background: $background; }
@@ -86,7 +96,7 @@ class BusyScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="busy-box"):
-            yield Static("Procesando en placa...")
+            yield Static(app_t(self, "modals.busy.processing", default="Procesando en placa..."))
             yield LoadingIndicator()
 
 
@@ -128,12 +138,12 @@ class PortSelectModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="port-dialog"):
-            yield Static("Seleccionar Puerto Serial (ESPTUI)", id="port-title")
-            yield Static("Presiona el número [1-9] del puerto o selecciónalo con Enter:", id="port-subtitle")
+            yield Static(app_t(self, "modals.port_select.title", default="Seleccionar Puerto Serial (ESPTUI)"), id="port-title")
+            yield Static(app_t(self, "modals.port_select.subtitle", default="Presiona el número [1-9] del puerto o selecciónalo con Enter:"), id="port-subtitle")
             yield ListView(id="port-list")
             with Horizontal(id="port-actions"):
-                yield Button("Refrescar (R)", id="btn-refresh-ports", variant="default")
-                yield Button("Continuar sin conexión (Esc)", id="btn-cancel-port", variant="warning")
+                yield Button(app_t(self, "modals.port_select.refresh", default="Refrescar (R)"), id="btn-refresh-ports", variant="default")
+                yield Button(app_t(self, "modals.port_select.cancel", default="Continuar sin conexión (Esc)"), id="btn-cancel-port", variant="warning")
 
     def on_mount(self):
         self.load_ports()
@@ -144,13 +154,13 @@ class PortSelectModal(ModalScreen):
         list_view = self.query_one("#port-list", ListView)
         list_view.clear()
         if not self.ports_list:
-            list_view.append(ListItem(Label("No se detectaron puertos seriales. Conecta la placa y presiona 'R'.")))
+            list_view.append(ListItem(Label(app_t(self, "modals.port_select.no_ports", default="No se detectaron puertos seriales. Conecta la placa y presiona 'R'."))))
             return
 
         for idx, port in enumerate(self.ports_list[:9], start=1):
             is_matched = port in matched
             tag = " [ESP/USB]" if is_matched else ""
-            desc = port.description or "Dispositivo serial"
+            desc = port.description or app_t(self, "modals.port_select.device", default="Dispositivo serial")
             label = f"[{idx}] {port.device} — {desc}{tag}"
             list_view.append(ListItem(Label(label)))
 
@@ -229,9 +239,9 @@ class KeybindingsHelpModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="help-dialog"):
-            yield Static("Atajos de Teclado — ESPTUI", id="help-title")
-            yield Static(self.HELP_INFO.strip(), id="help-text")
-            yield Button("Entendido / Cerrar (Esc)", id="btn-close-help", variant="primary")
+            yield Static(app_t(self, "modals.keybindings.title", default="Atajos de Teclado — ESPTUI"), id="help-title")
+            yield Static(app_t(self, "modals.keybindings.info", default=self.HELP_INFO.strip()), id="help-text")
+            yield Button(app_t(self, "modals.keybindings.close", default="Entendido / Cerrar (Esc)"), id="btn-close-help", variant="primary")
 
     def action_dismiss_modal(self):
         self.dismiss()
@@ -248,6 +258,7 @@ class FileNameModal(ModalScreen):
     #filename-dialog {
         width: 60;
         height: auto;
+        max-height: 18;
         border: heavy cyan;
         background: $surface;
         padding: 1 2;
@@ -261,18 +272,20 @@ class FileNameModal(ModalScreen):
         Binding("escape", "dismiss_modal", "Cancelar", priority=True),
     ]
 
-    def __init__(self, title="Nombre del archivo", default_name="sketch.py"):
+    def __init__(self, title=None, default_name="sketch.py"):
         super().__init__()
         self.dialog_title = title
         self.default_name = default_name
 
     def compose(self) -> ComposeResult:
+        title = self.dialog_title or app_t(self, "modals.file_name.default_title", default="Nombre del archivo")
         with Vertical(id="filename-dialog"):
-            yield Static(self.dialog_title, id="filename-title")
-            yield Input(value=self.default_name, placeholder="nombre_archivo.py", id="filename-input")
+            yield Static(title, id="filename-title")
+            placeholder = app_t(self, "modals.file_name.placeholder", default="nombre_archivo.py")
+            yield Input(value=self.default_name, placeholder=placeholder, id="filename-input")
             with Horizontal(id="filename-actions"):
-                yield Button("Aceptar (Enter)", id="btn-filename-accept", variant="success")
-                yield Button("Cancelar (Esc)", id="btn-filename-cancel", variant="warning")
+                yield Button(app_t(self, "modals.file_name.accept", default="Aceptar (Enter)"), id="btn-filename-accept", variant="success")
+                yield Button(app_t(self, "modals.file_name.cancel", default="Cancelar (Esc)"), id="btn-filename-cancel", variant="warning")
 
     def on_mount(self):
         self.query_one("#filename-input", Input).focus()
@@ -320,12 +333,13 @@ class RemoteFileActionModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="remote-action-dialog"):
-            yield Static(f"Archivo en ESP32: [b cyan]{self.filename}[/]", id="remote-action-title")
+            title = app_t(self, "modals.remote_file_action.title", filename=self.filename, default=f"Archivo en ESP32: [b cyan]{self.filename}[/]")
+            yield Static(title, id="remote-action-title")
             with Vertical(id="remote-action-buttons"):
-                yield Button("1. Abrir / Editar en IDE", id="btn-action-open", variant="success")
-                yield Button("2. Renombrar en placa", id="btn-action-rename", variant="primary")
-                yield Button("3. Eliminar de placa", id="btn-action-delete", variant="error")
-                yield Button("4. Cancelar (Esc)", id="btn-action-cancel")
+                yield Button(app_t(self, "modals.remote_file_action.open", default="1. Abrir / Editar en IDE"), id="btn-action-open", variant="success")
+                yield Button(app_t(self, "modals.remote_file_action.rename", default="2. Renombrar en placa"), id="btn-action-rename", variant="primary")
+                yield Button(app_t(self, "modals.remote_file_action.delete", default="3. Eliminar de placa"), id="btn-action-delete", variant="error")
+                yield Button(app_t(self, "modals.remote_file_action.cancel", default="4. Cancelar (Esc)"), id="btn-action-cancel")
 
     def on_mount(self):
         self.query_one("#btn-action-open", Button).focus()
@@ -369,11 +383,12 @@ class ConfirmDeleteModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="confirm-delete-dialog"):
-            yield Static("¿Eliminar archivo de la placa?", id="confirm-delete-title")
-            yield Static(f"¿Deseas eliminar permanentemente [b yellow]{self.filename}[/] de la flash?", id="confirm-delete-text")
+            yield Static(app_t(self, "modals.confirm_delete.title", default="¿Eliminar archivo de la placa?"), id="confirm-delete-title")
+            text = app_t(self, "modals.confirm_delete.text", filename=self.filename, default=f"¿Deseas eliminar permanentemente [b yellow]{self.filename}[/] de la flash?")
+            yield Static(text, id="confirm-delete-text")
             with Horizontal(id="confirm-delete-actions"):
-                yield Button("Sí, eliminar", id="btn-confirm-delete", variant="error")
-                yield Button("Cancelar (Esc)", id="btn-cancel-delete", variant="primary")
+                yield Button(app_t(self, "modals.confirm_delete.confirm", default="Sí, eliminar"), id="btn-confirm-delete", variant="error")
+                yield Button(app_t(self, "modals.confirm_delete.cancel", default="Cancelar (Esc)"), id="btn-cancel-delete", variant="primary")
 
     def action_dismiss_modal(self, confirmed: bool):
         self.dismiss(confirmed)
@@ -449,6 +464,28 @@ class ESP32TUIApp(App):
     #editor-buttons { height: 3; margin-top: 1; }
     #editor-buttons Button { width: 1fr; min-width: 0; margin: 0 1; }
     #refresh-esp32 { width: 100%; margin-top: 1; }
+    #top-bar {
+        height: 1;
+        background: $surface;
+        dock: top;
+        align-horizontal: right;
+        align-vertical: middle;
+        padding: 0 1;
+    }
+    #top-bar-lang-label {
+        color: $text-muted;
+        margin-right: 1;
+        height: 1;
+    }
+    #lang-select {
+        width: 18;
+        height: 1;
+    }
+    #lang-select SelectCurrent {
+        border: none;
+        padding: 0 1;
+        height: 1;
+    }
     """
     BINDINGS = [
         # Navegación homogénea entre paneles (oculta del footer para dar más aire)
@@ -474,6 +511,7 @@ class ESP32TUIApp(App):
         Binding("question_mark", "show_help", "Ayuda", priority=False, show=False),
         Binding("f2", "select_port", "Puertos", priority=True),
         Binding("ctrl+p", "select_port", "Puertos", priority=True, show=False),
+        Binding("f3", "cycle_language", "Idioma / Lang", priority=True, show=False),
 
         # Control de paneles y salida
         Binding("f7", "toggle_console", "Consola", priority=True, show=False),
@@ -484,6 +522,9 @@ class ESP32TUIApp(App):
     def __init__(self):
         super().__init__()
         self.config = load_config()
+        self.i18n = get_i18n(default_lang=self.config.get("lang", "en"))
+        if "lang" in self.config:
+            self.i18n.set_language(self.config["lang"])
         self.port = None
         self.ser = None
         self.serial_lock = threading.Lock()
@@ -496,43 +537,56 @@ class ESP32TUIApp(App):
         self.current_remote_file = None
         self.remote_content_loaded = None
 
+    def t(self, key_path: str, default: str | None = None, **kwargs) -> str:
+        return self.i18n.t(key_path, default=default, **kwargs)
+
     def compose(self) -> ComposeResult:
         yield Header()
+        if self.i18n.has_multiple_languages:
+            with Horizontal(id="top-bar"):
+                yield Static(self.t("top_bar.language_label", default="🌐 Language:"), id="top-bar-lang-label")
+                yield Select(
+                    self.i18n.get_language_options(),
+                    value=self.i18n.current_lang,
+                    id="lang-select",
+                    allow_blank=False,
+                )
         with Horizontal(id="workspace"):
             with Vertical(id="sidebar"):
-                yield Static("Archivos locales y placa [Alt+1]", classes="title hideable")
+                yield Static(self.t("sidebar.title", default="Archivos locales y placa [Alt+1]"), id="sidebar-title", classes="title hideable")
                 with Vertical(classes="panel-content hideable"):
                     yield DirectoryTree(str(self.user_home), id="local-files")
-                    yield Static("ESP32: sin conectar", id="board-title", classes="title")
+                    yield Static(self.t("sidebar.board_disconnected", default="ESP32: sin conectar"), id="board-title", classes="title")
                     yield ListView(id="esp32-files")
-                    yield Button("Refrescar placa", id="refresh-esp32")
-                yield Static("F\nI\nL\nE\nS", classes="collapsed-label")
+                    yield Button(self.t("sidebar.refresh_board", default="Refrescar placa"), id="refresh-esp32")
+                yield Static(self.t("sidebar.collapsed_label", default="F\nI\nL\nE\nS"), classes="collapsed-label")
             with Vertical(id="editor-pane"):
-                yield Static("Editor de código [Alt+2]: main.py", id="editor-title", classes="title")
+                yield Static(self.t("editor.title", filename=self.current_file.name, default=f"Editor de código [Alt+2]: {self.current_file.name}"), id="editor-title", classes="title")
                 yield TextArea.code_editor(
-                    "# MicroPython\nprint('Hola ESP32')\n",
-                    language="python", theme=self.config["theme"], id="code-editor",
+                    self.t("editor.default_code", default="# MicroPython\nprint('Hola ESP32')\n"),
+                    language="python", theme=self.config.get("theme", "monokai"), id="code-editor",
                 )
                 with Horizontal(id="editor-buttons"):
-                    yield Button("Guardar (Ctrl+S)", id="save-btn", variant="success")
-                    yield Button("Ejecutar (F5)", id="send-btn", variant="primary")
-                    yield Button("Subir (F6)", id="upload-btn", variant="warning")
-                    yield Button("Parar (F8)", id="stop-btn", variant="error")
+                    yield Button(self.t("editor.save", default="Guardar (Ctrl+S)"), id="save-btn", variant="success")
+                    yield Button(self.t("editor.run", default="Ejecutar (F5)"), id="send-btn", variant="primary")
+                    yield Button(self.t("editor.upload", default="Subir (F6)"), id="upload-btn", variant="warning")
+                    yield Button(self.t("editor.stop", default="Parar (F8)"), id="stop-btn", variant="error")
             with Vertical(id="console-pane"):
-                yield Static("Consola serial REPL [Alt+3]", classes="title hideable")
+                yield Static(self.t("console.title", default="Consola serial REPL [Alt+3]"), id="console-title", classes="title hideable")
                 with Vertical(classes="panel-content hideable"):
                     yield ConsoleLog(id="serial-log", markup=False, highlight=False, max_lines=3000)
                     with Horizontal(id="console-actions"):
-                        yield Button("Copiar (Ctrl+C)", id="btn-copy-console")
-                        yield Button("Limpiar", id="btn-clear-console")
-                    yield Input(placeholder="Comando REPL...", id="serial-input")
-                yield Static("R\nE\nP\nL", classes="collapsed-label")
+                        yield Button(self.t("console.copy", default="Copiar (Ctrl+C)"), id="btn-copy-console")
+                        yield Button(self.t("console.clear", default="Limpiar"), id="btn-clear-console")
+                    yield Input(placeholder=self.t("console.placeholder", default="Comando REPL..."), id="serial-input")
+                yield Static(self.t("console.collapsed_label", default="R\nE\nP\nL"), classes="collapsed-label")
         yield Footer()
 
     def on_mount(self):
         self.editor = self.query_one("#code-editor", TextArea)
         self.serial_log = self.query_one("#serial-log", ConsoleLog)
         self.remote_files = self.query_one("#esp32-files", ListView)
+        self.update_ui_texts()
 
         # Si se especificó un puerto estático en config distinto a AUTO, conectar directo
         if self.config["port"] != "AUTO":
@@ -540,6 +594,124 @@ class ESP32TUIApp(App):
         else:
             # En modo AUTO, mostrar modal enumerado para selección rápida
             self.call_after_refresh(self.action_select_port)
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id == "lang-select" and event.value != Select.BLANK:
+            self.action_change_language(str(event.value))
+
+    def action_change_language(self, lang_code: str):
+        if not self.i18n.set_language(lang_code):
+            return
+        self.config["lang"] = lang_code
+        try:
+            select = self.query_one("#lang-select", Select)
+            if select.value != lang_code:
+                select.value = lang_code
+        except Exception:
+            pass
+        self.update_ui_texts()
+        self.serial_log.write(self.t("messages.language_changed", lang=lang_code.upper(), default=f"Language changed to: {lang_code.upper()}"))
+
+    def action_cycle_language(self):
+        langs = list(self.i18n.available_languages.keys())
+        if len(langs) <= 1:
+            return
+        try:
+            idx = langs.index(self.i18n.current_lang)
+            next_lang = langs[(idx + 1) % len(langs)]
+        except ValueError:
+            next_lang = langs[0]
+        self.action_change_language(next_lang)
+
+    def update_ui_texts(self):
+        try:
+            self.query_one("#top-bar-lang-label", Static).update(
+                self.t("top_bar.language_label", default="🌐 Language:")
+            )
+        except Exception:
+            pass
+
+        try:
+            self.query_one("#sidebar-title", Static).update(
+                self.t("sidebar.title", default="Local & board files [Alt+1]")
+            )
+            if self.port:
+                self.query_one("#board-title", Static).update(
+                    self.t("sidebar.board_connected", port=self.port, default=f"ESP32: {self.port}")
+                )
+            else:
+                self.query_one("#board-title", Static).update(
+                    self.t("sidebar.board_disconnected", default="ESP32: disconnected")
+                )
+            self.query_one("#refresh-esp32", Button).label = self.t("sidebar.refresh_board", default="Refresh board")
+        except Exception:
+            pass
+
+        try:
+            if self.is_remote_file and self.current_remote_file:
+                self.query_one("#editor-title", Static).update(
+                    self.t("editor.title_esp32", filename=self.current_remote_file, default=f"Code editor [Alt+2] (ESP32): {self.current_remote_file}")
+                )
+            else:
+                self.query_one("#editor-title", Static).update(
+                    self.t("editor.title", filename=self.current_file.name, default=f"Code editor [Alt+2]: {self.current_file.name}")
+                )
+            self.query_one("#save-btn", Button).label = self.t("editor.save", default="Save (Ctrl+S)")
+            self.query_one("#send-btn", Button).label = self.t("editor.run", default="Run (F5)")
+            self.query_one("#upload-btn", Button).label = self.t("editor.upload", default="Upload (F6)")
+            self.query_one("#stop-btn", Button).label = self.t("editor.stop", default="Stop (F8)")
+        except Exception:
+            pass
+
+        try:
+            self.query_one("#console-title", Static).update(
+                self.t("console.title", default="Serial REPL console [Alt+3]")
+            )
+            self.query_one("#btn-copy-console", Button).label = self.t("console.copy", default="Copy (Ctrl+C)")
+            self.query_one("#btn-clear-console", Button).label = self.t("console.clear", default="Clear")
+            self.query_one("#serial-input", Input).placeholder = self.t("console.placeholder", default="REPL command...")
+        except Exception:
+            pass
+
+        bindings_map = {
+            "focus_panel('files')": self.t("footer.files", default="Files"),
+            "focus_panel('editor')": self.t("footer.editor", default="Editor"),
+            "focus_panel('console')": self.t("footer.console", default="Console"),
+            "copy_console": self.t("footer.copy_console", default="Copy console"),
+            "new_file": self.t("footer.new_file", default="New file"),
+            "rename_file": self.t("footer.rename", default="Rename"),
+            "save_file": self.t("footer.save", default="Save"),
+            "run_code": self.t("footer.run", default="Run"),
+            "upload_file": self.t("footer.upload", default="Upload"),
+            "stop_execution": self.t("footer.stop", default="Stop"),
+            "send_soft_reset": self.t("footer.reset", default="Reset"),
+            "show_help": self.t("footer.help", default="Help"),
+            "select_port": self.t("footer.ports", default="Ports"),
+            "quit": self.t("footer.quit", default="Quit"),
+        }
+        for key, action in [
+            ("alt+1", "focus_panel('files')"),
+            ("alt+2", "focus_panel('editor')"),
+            ("alt+3", "focus_panel('console')"),
+            ("ctrl+c", "copy_console"),
+            ("ctrl+n", "new_file"),
+            ("f4", "rename_file"),
+            ("ctrl+s", "save_file"),
+            ("f5", "run_code"),
+            ("f6", "upload_file"),
+            ("f8", "stop_execution"),
+            ("f9", "send_soft_reset"),
+            ("f1", "show_help"),
+            ("f2", "select_port"),
+            ("ctrl+q", "quit"),
+        ]:
+            desc = bindings_map.get(action)
+            if desc:
+                self.bind(key, action, description=desc)
+        try:
+            self.query_one(Footer).refresh(recompose=True)
+        except Exception:
+            pass
 
     def action_show_help(self):
         self.push_screen(KeybindingsHelpModal())
@@ -549,7 +721,7 @@ class ESP32TUIApp(App):
             if selected_port:
                 self.connect_to_port(selected_port)
             else:
-                self.serial_log.write("Trabajando sin puerto conectado. Usa Ctrl+P para seleccionar uno.")
+                self.serial_log.write(self.t("messages.no_port_working", default="Trabajando sin puerto conectado. Usa Ctrl+P para seleccionar uno."))
 
         self.push_screen(PortSelectModal(), on_port_selected)
 
@@ -559,15 +731,15 @@ class ESP32TUIApp(App):
                 if self.ser and self.ser.is_open:
                     self.ser.close()
             self.port = port_device
-            self.query_one("#board-title", Static).update(f"ESP32: {self.port}")
+            self.query_one("#board-title", Static).update(self.t("sidebar.board_connected", port=self.port, default=f"ESP32: {self.port}"))
             self.open_serial()
-            self.serial_log.write(f"Conectado a puerto: {self.port}")
+            self.serial_log.write(self.t("messages.connected", port=self.port, default=f"Conectado a puerto: {self.port}"))
             if not hasattr(self, "reader") or not self.reader.is_alive():
                 self.reader = threading.Thread(target=self.read_serial, daemon=True)
                 self.reader.start()
             self.start_board_task("list")
         except Exception as error:
-            self.serial_log.write(f"Conexión con {port_device}: {error}")
+            self.serial_log.write(self.t("messages.connection_error", port=port_device, error=error, default=f"Conexión con {port_device}: {error}"))
 
     def action_focus_panel(self, panel_name: str):
         if panel_name in ("files", "1"):
@@ -646,10 +818,10 @@ class ESP32TUIApp(App):
 
     def start_board_task(self, operation, remote_filename=None, new_filename=None, force=False):
         if self.busy and not force:
-            self.serial_log.write("Espera a que termine la operación actual.")
+            self.serial_log.write(self.t("messages.wait_busy", default="Espera a que termine la operación actual."))
             return
         if not self.port:
-            self.serial_log.write("Selecciona un puerto con Ctrl+P para realizar operaciones de placa.")
+            self.serial_log.write(self.t("messages.select_port_first", default="Selecciona un puerto con Ctrl+P para realizar operaciones de placa."))
             return
         self.busy = True
         content = new_filename if operation == "rename" else self.editor.text
@@ -677,14 +849,14 @@ class ESP32TUIApp(App):
                     self.ser.write(b"\x05")
                     time.sleep(0.2)
                     payload = (content.replace("\r\n", "\n").replace("\n", "\r\n")
-                               + "\r\n").encode("utf-8")
+                                + "\r\n").encode("utf-8")
                     for offset in range(0, len(payload), 128):
                         if self.stopping.is_set():
                             return
                         self.ser.write(payload[offset:offset + 128])
                         time.sleep(0.01)
                     self.ser.write(b"\x04")
-                    messages.append("Código enviado por Paste Mode; revisa la salida del REPL.")
+                    messages.append(self.t("messages.code_sent", default="Código enviado por Paste Mode; revisa la salida del REPL."))
                 else:
                     if self.ser and self.ser.is_open:
                         try:
@@ -705,16 +877,16 @@ class ESP32TUIApp(App):
                                 temporary = Path(directory) / clean_filename
                                 temporary.write_text(content, encoding="utf-8")
                                 self.ampy("put", str(temporary), dest_filename)
-                            messages.append(f"Archivo subido a placa: {dest_filename}")
+                            messages.append(self.t("messages.uploaded", filename=dest_filename, dest_filename=dest_filename, default=f"Archivo subido a placa: {dest_filename}"))
                         elif operation == "get" and remote_filename:
                             clean_remote = remote_filename.lstrip("/") or "main.py"
                             raw = self.ampy("get", clean_remote)
                             loaded_remote = (clean_remote, raw)
-                            messages.append(f"Archivo de placa descargado: {clean_remote}")
+                            messages.append(self.t("messages.downloaded", filename=clean_remote, clean_remote=clean_remote, default=f"Archivo de placa descargado: {clean_remote}"))
                         elif operation == "rm" and remote_filename:
                             clean_remote = remote_filename.lstrip("/")
                             self.ampy("rm", clean_remote)
-                            messages.append(f"Archivo eliminado de la placa: {clean_remote}")
+                            messages.append(self.t("messages.deleted", filename=clean_remote, clean_remote=clean_remote, default=f"Archivo eliminado de la placa: {clean_remote}"))
                             if self.is_remote_file and self.current_remote_file == clean_remote:
                                 self.is_remote_file = False
                                 self.current_remote_file = None
@@ -729,7 +901,7 @@ class ESP32TUIApp(App):
                                     temporary.write_text(raw, encoding="utf-8")
                                     self.ampy("put", str(temporary), new_remote)
                                 self.ampy("rm", old_remote)
-                                messages.append(f"Archivo renombrado en placa: {old_remote} -> {new_remote}")
+                                messages.append(self.t("messages.renamed", old=old_remote, new=new_remote, old_remote=old_remote, new_remote=new_remote, default=f"Archivo renombrado en placa: {old_remote} -> {new_remote}"))
                                 if self.is_remote_file and self.current_remote_file == old_remote:
                                     self.current_remote_file = new_remote
                         files = [f for f in self.ampy("ls").splitlines() if f.strip() and f.strip() != "/"]
@@ -738,11 +910,11 @@ class ESP32TUIApp(App):
                             time.sleep(0.25)
                             try:
                                 self.open_serial()
-                                messages.append(f"Consola reconectada: {self.port}")
+                                messages.append(self.t("messages.reconnected", port=self.port, default=f"Consola reconectada: {self.port}"))
                             except Exception as error:
-                                messages.append(f"No se pudo reconectar: {error}")
+                                messages.append(self.t("messages.reconnect_failed", error=error, default=f"No se pudo reconectar: {error}"))
         except Exception as error:
-            messages.append(f"Operación {operation}: {error}")
+            messages.append(self.t("messages.operation_error", operation=operation, error=error, default=f"Operación {operation}: {error}"))
         finally:
             if not self.stopping.is_set():
                 try:
@@ -766,12 +938,12 @@ class ESP32TUIApp(App):
                 self.editor.load_text(body)
                 self.is_remote_file = True
                 self.current_remote_file = fname
-                self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2] (ESP32): {fname}")
+                self.query_one("#editor-title", Static).update(self.t("editor.title_esp32", filename=fname, default=f"Editor de código [Alt+2] (ESP32): {fname}"))
                 self.editor.focus()
             elif self.is_remote_file and self.current_remote_file:
-                self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2] (ESP32): {self.current_remote_file}")
+                self.query_one("#editor-title", Static).update(self.t("editor.title_esp32", filename=self.current_remote_file, default=f"Editor de código [Alt+2] (ESP32): {self.current_remote_file}"))
             elif not self.is_remote_file:
-                self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2]: {self.current_file.name}")
+                self.query_one("#editor-title", Static).update(self.t("editor.title", filename=self.current_file.name, default=f"Editor de código [Alt+2]: {self.current_file.name}"))
             for message in messages:
                 self.serial_log.write(message)
         finally:
@@ -783,12 +955,12 @@ class ESP32TUIApp(App):
 
     def write_repl(self, payload):
         if self.busy:
-            self.serial_log.write("Puerto ocupado por otra operación.")
+            self.serial_log.write(self.t("messages.port_busy", default="Puerto ocupado por otra operación."))
             return False
         try:
             with self.serial_lock:
                 if not self.ser or not self.ser.is_open:
-                    raise RuntimeError("La consola serial no está conectada")
+                    raise RuntimeError(self.t("messages.not_connected", default="La consola serial no está conectada"))
                 self.ser.write(payload)
             return True
         except Exception as error:
@@ -803,14 +975,14 @@ class ESP32TUIApp(App):
 
     def action_stop_execution(self):
         """Parar toda ejecución: envía interrupción doble Ctrl+C al REPL."""
-        self.serial_log.write("[STOP] Deteniendo ejecución en la placa (Ctrl+C)...")
+        self.serial_log.write(self.t("messages.stopping", default="[STOP] Deteniendo ejecución en la placa (Ctrl+C)..."))
         self.write_repl(b"\x03\x03")
 
     def action_send_interrupt(self):
         self.action_stop_execution()
 
     def action_send_soft_reset(self):
-        self.serial_log.write("[RESET] Reinicio suave (Ctrl+D)...")
+        self.serial_log.write(self.t("messages.resetting", default="[RESET] Reinicio suave (Ctrl+D)..."))
         self.write_repl(b"\x04")
 
     def action_run_code(self):
@@ -835,8 +1007,8 @@ class ESP32TUIApp(App):
             self.current_file = path
             self.is_remote_file = False
             self.current_remote_file = None
-            self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2]: {path.name}")
-            self.serial_log.write(f"Abierto archivo local: {path.name}")
+            self.query_one("#editor-title", Static).update(self.t("editor.title", filename=path.name, default=f"Editor de código [Alt+2]: {path.name}"))
+            self.serial_log.write(self.t("messages.local_opened", filename=path.name, default=f"Abierto archivo local: {path.name}"))
         except Exception as error:
             self.serial_log.write(f"Abrir archivo: {error}")
 
@@ -849,7 +1021,7 @@ class ESP32TUIApp(App):
                 if labels:
                     target_file = str(labels.first().render()).strip()
             if target_file and target_file != "/":
-                self.serial_log.write(f"Deteniendo ejecución y descargando {target_file}...")
+                self.serial_log.write(self.t("messages.downloading", filename=target_file, default=f"Deteniendo ejecución y descargando {target_file}..."))
                 self.start_board_task("get", remote_filename=target_file, force=True)
 
     def action_remote_file_context(self, target_file: str):
@@ -859,7 +1031,7 @@ class ESP32TUIApp(App):
 
         def on_action_chosen(action):
             if action == "open":
-                self.serial_log.write(f"Deteniendo ejecución y descargando {target_file}...")
+                self.serial_log.write(self.t("messages.downloading", filename=target_file, default=f"Deteniendo ejecución y descargando {target_file}..."))
                 self.start_board_task("get", remote_filename=target_file, force=True)
             elif action == "rename":
                 self.action_rename_remote_file(target_file)
@@ -874,16 +1046,16 @@ class ESP32TUIApp(App):
             if new_name and new_name != target_file:
                 if not new_name.endswith(".py"):
                     new_name += ".py"
-                self.serial_log.write(f"Renombrando {target_file} a {new_name}...")
+                self.serial_log.write(self.t("messages.renaming", old=target_file, new=new_name, default=f"Renombrando {target_file} a {new_name}..."))
                 self.start_board_task("rename", remote_filename=target_file, new_filename=new_name, force=True)
 
-        self.push_screen(FileNameModal(title=f"Renombrar en ESP32: {target_file}", default_name=target_file), on_rename_entered)
+        self.push_screen(FileNameModal(title=self.t("modals.file_name.title_rename_esp32", filename=target_file, default=f"Renombrar en ESP32: {target_file}"), default_name=target_file), on_rename_entered)
 
     def action_delete_remote_file(self, target_file: str):
         """Modal de confirmación para eliminar un archivo en la placa."""
         def on_confirm_delete(confirmed):
             if confirmed:
-                self.serial_log.write(f"Eliminando {target_file} de la placa...")
+                self.serial_log.write(self.t("messages.deleting", filename=target_file, default=f"Eliminando {target_file} de la placa..."))
                 self.start_board_task("rm", remote_filename=target_file, force=True)
 
         self.push_screen(ConfirmDeleteModal(filename=target_file), on_confirm_delete)
@@ -914,7 +1086,7 @@ class ESP32TUIApp(App):
             return
         try:
             self.current_file.write_text(self.editor.text, encoding="utf-8")
-            self.serial_log.write(f"Guardado localmente: {self.current_file}")
+            self.serial_log.write(self.t("messages.saved_local", path=str(self.current_file), default=f"Guardado localmente: {self.current_file}"))
         except Exception as error:
             self.serial_log.write(f"Guardar archivo: {error}")
 
@@ -927,12 +1099,12 @@ class ESP32TUIApp(App):
                 self.current_file = self.user_home / filename
                 self.is_remote_file = False
                 self.current_remote_file = None
-                self.editor.load_text("# MicroPython\nprint('Nuevo script')\n")
-                self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2]: {filename}")
-                self.serial_log.write(f"Nuevo archivo local: {filename}")
+                self.editor.load_text(self.t("editor.new_script_code", default="# MicroPython\nprint('Nuevo script')\n"))
+                self.query_one("#editor-title", Static).update(self.t("editor.title", filename=filename, default=f"Editor de código [Alt+2]: {filename}"))
+                self.serial_log.write(self.t("messages.new_file_created", filename=filename, default=f"Nuevo archivo local: {filename}"))
                 self.editor.focus()
 
-        self.push_screen(FileNameModal(title="Crear Nuevo Archivo", default_name="nuevo_script.py"), on_name_entered)
+        self.push_screen(FileNameModal(title=self.t("modals.file_name.title_new", default="Crear Nuevo Archivo"), default_name="nuevo_script.py"), on_name_entered)
 
     def action_rename_file(self):
         """Renombrar el archivo activo o definir con qué nombre se subirá a la placa."""
@@ -943,29 +1115,29 @@ class ESP32TUIApp(App):
                     filename += ".py"
                 if self.is_remote_file:
                     self.current_remote_file = filename
-                    self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2] (ESP32): {filename}")
+                    self.query_one("#editor-title", Static).update(self.t("editor.title_esp32", filename=filename, default=f"Editor de código [Alt+2] (ESP32): {filename}"))
                 else:
                     self.current_file = self.current_file.parent / filename
-                    self.query_one("#editor-title", Static).update(f"Editor de código [Alt+2]: {filename}")
-                self.serial_log.write(f"Archivo activo ahora es: {filename}")
+                    self.query_one("#editor-title", Static).update(self.t("editor.title", filename=filename, default=f"Editor de código [Alt+2]: {filename}"))
+                self.serial_log.write(self.t("messages.active_file_changed", filename=filename, default=f"Archivo activo ahora es: {filename}"))
                 self.editor.focus()
 
-        self.push_screen(FileNameModal(title="Renombrar / Guardar Como", default_name=current_name), on_name_entered)
+        self.push_screen(FileNameModal(title=self.t("modals.file_name.title_rename", default="Renombrar / Guardar Como"), default_name=current_name), on_name_entered)
 
     def action_copy_console(self):
         """Copia la selección del usuario o todo el registro de la consola al portapapeles."""
         selected = self.screen.get_selected_text()
         if selected:
             copy_text_to_system_clipboard(self, selected)
-            self.serial_log.write("[PORTAPAPELES] Texto seleccionado copiado.")
+            self.serial_log.write(self.t("messages.clipboard_selected", default="[PORTAPAPELES] Texto seleccionado copiado."))
         else:
             lines = [str(getattr(l, "text", l)) for l in self.serial_log.lines]
             text = "\n".join(lines).strip()
             if text:
                 copy_text_to_system_clipboard(self, text)
-                self.serial_log.write("[PORTAPAPELES] Consola copiada al portapapeles.")
+                self.serial_log.write(self.t("messages.clipboard_console", default="[PORTAPAPELES] Consola copiada al portapapeles."))
             else:
-                self.serial_log.write("[PORTAPAPELES] No hay texto para copiar.")
+                self.serial_log.write(self.t("messages.clipboard_empty", default="[PORTAPAPELES] No hay texto para copiar."))
 
     def on_button_pressed(self, event: Button.Pressed):
         actions = {
