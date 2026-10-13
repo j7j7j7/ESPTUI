@@ -18,6 +18,9 @@ IDE ligero de terminal para MicroPython en microcontroladores ESP32, ESP8266 y m
 - **Ejecución rápida:** Ejecución al vuelo en RAM vía Paste Mode (`F5`) o subida permanente a flash (`F6`).
 - **Control de ejecución:** Parada inmediata con interrupción doble (`F8` / Ctrl+C) y soft reset (`F9` / Ctrl+D).
 - **Copiar errores:** Selección de texto con ratón y copiado al portapapeles del sistema (`Ctrl+C` o clic derecho).
+- **Telemetría y Diagnóstico:** Visualización en vivo en la barra lateral de RAM libre (`gc.mem_free()`), almacenamiento Flash disponible (`os.statvfs('/')`) y velocidad de reloj de la CPU (`machine.freq()`).
+- **Gestor de Paquetes (`mip`):** Instalador integrado (`F11`) para librerías MicroPython desde el índice oficial `micropython.org/pi/v2` directo a `/lib` en la placa sin requerir WiFi en el microcontrolador.
+- **Flasheador de Firmware (`esptool`):** Grabado de binarios MicroPython oficiales (`F12`) con descarga con un clic, selección de velocidad (115200 / 460800 baudios) y borrado previo opcional.
 - **Multilenguaje (i18n):** Interfaz por defecto en inglés (`en.json`) con soporte español (`es.json`). Selector dinámico en el menú superior cuando hay más de 1 idioma en `config/lang/`.
 - **Configuración limpia:** Carpeta global oculta en `~/.esptui/` para configuraciones sin ensuciar tus directorios de trabajo.
 
@@ -77,6 +80,8 @@ esptui
 | `F1` / `?` | Abrir ventana de ayuda con todos los atajos |
 | `F2` / `Ctrl+P` | Selector y filtro de puertos seriales |
 | `F3` | Alternar idioma de interfaz (si hay > 1 disponible) |
+| `F11` | Gestor de paquetes MicroPython (mip) |
+| `F12` | Flasheador de firmware ESP32 (esptool) |
 | `Ctrl+Q` | Salir de ESPTUI |
 
 ### En la lista de archivos de la placa:
@@ -84,6 +89,37 @@ esptui
 - **Clic Derecho / `m` / `Espacio`:** Menú contextual (Abrir, Renombrar, Eliminar).
 - **`Supr` (`Delete`):** Eliminar archivo de la placa (con confirmación).
 - **`F4`:** Renombrar archivo seleccionado en la placa.
+
+---
+
+## Actualización
+
+Si ya instalaste ESPTUI previamente y deseas actualizarlo a la versión más reciente:
+
+### Actualización con script remoto (Linux / macOS)
+Vuelve a ejecutar el instalador oficial:
+```bash
+curl -fsSL https://raw.githubusercontent.com/j7j7j7/ESPTUI/main/install.sh | sh
+```
+
+### Actualización con `uv tool`
+Si instalaste mediante `uv tool`:
+```bash
+uv tool install --force --reinstall git+https://github.com/j7j7j7/ESPTUI.git
+```
+
+### Actualización desde repositorio clonado
+Si trabajas con el código fuente en local:
+```bash
+cd ESPTUI
+git pull origin main
+bash install-local.sh
+```
+
+### Actualización en Windows (PowerShell)
+```powershell
+irm https://raw.githubusercontent.com/j7j7j7/ESPTUI/main/install.ps1 | iex
+```
 
 ---
 
