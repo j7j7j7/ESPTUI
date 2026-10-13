@@ -605,7 +605,7 @@ class ESP32TUIApp(App):
         yield Header()
         if self.i18n.has_multiple_languages:
             with Horizontal(id="top-bar"):
-                yield Static(self.t("top_bar.language_label", default="🌐 Language:"), id="top-bar-lang-label")
+                yield Static(self.t("top_bar.language_label", default="Language:"), id="top-bar-lang-label")
                 yield Select(
                     self.i18n.get_language_options(),
                     value=self.i18n.current_lang,
@@ -697,7 +697,7 @@ class ESP32TUIApp(App):
     def update_ui_texts(self):
         try:
             self.query_one("#top-bar-lang-label", Static).update(
-                self.t("top_bar.language_label", default="🌐 Language:")
+                self.t("top_bar.language_label", default="Language:")
             )
         except Exception:
             pass
