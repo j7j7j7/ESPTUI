@@ -167,5 +167,50 @@ class I18nUITests(unittest.IsolatedAsyncioTestCase):
                         self.assertEqual(len(app.query("#top-bar")), 0)
 
 
+    async def test_footer_and_action_buttons_match_language(self):
+        with patch("main.find_port", side_effect=RuntimeError("No board in test")):
+            config = DEFAULTS.copy()
+            config["lang"] = "en"
+            app = TerminalIDE(config)
+            async with app.run_test(size=(120, 40)) as pilot:
+                await pilot.pause()
+                # Dismiss initial PortSelectModal
+                await pilot.press("escape")
+                await pilot.pause()
+
+                # In English mode:
+                save_btn = app.query_one("#save-btn", Button)
+                run_btn = app.query_one("#send-btn", Button)
+                upload_btn = app.query_one("#upload-btn", Button)
+                stop_btn = app.query_one("#stop-btn", Button)
+                self.assertEqual(str(save_btn.label), "Save (Ctrl+S)")
+                self.assertEqual(str(run_btn.label), "Run (F5)")
+                self.assertEqual(str(upload_btn.label), "Upload (F6)")
+                self.assertEqual(str(stop_btn.label), "Stop (F8)")
+
+                footer_descriptions = {k.key: k.description for k in app.query("FooterKey")}
+                self.assertEqual(footer_descriptions.get("ctrl+s"), "Save")
+                self.assertEqual(footer_descriptions.get("f5"), "Run")
+                self.assertEqual(footer_descriptions.get("f6"), "Upload")
+                self.assertEqual(footer_descriptions.get("f8"), "Stop")
+                self.assertEqual(footer_descriptions.get("f3"), "Language")
+
+                # Switch to Spanish
+                app.action_change_language("es")
+                await pilot.pause()
+
+                self.assertEqual(str(save_btn.label), "Guardar (Ctrl+S)")
+                self.assertEqual(str(run_btn.label), "Ejecutar (F5)")
+                self.assertEqual(str(upload_btn.label), "Subir (F6)")
+                self.assertEqual(str(stop_btn.label), "Parar (F8)")
+
+                footer_descriptions = {k.key: k.description for k in app.query("FooterKey")}
+                self.assertEqual(footer_descriptions.get("ctrl+s"), "Guardar")
+                self.assertEqual(footer_descriptions.get("f5"), "Ejecutar")
+                self.assertEqual(footer_descriptions.get("f6"), "Subir")
+                self.assertEqual(footer_descriptions.get("f8"), "Parar")
+                self.assertEqual(footer_descriptions.get("f3"), "Idioma")
+
+
 if __name__ == "__main__":
     unittest.main()

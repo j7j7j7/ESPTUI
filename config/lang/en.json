@@ -57,11 +57,15 @@
       "refresh": "Refresh (R)",
       "cancel": "Continue without connection (Esc)",
       "no_ports": "No serial ports detected. Connect board and press 'R'.",
-      "device": "Serial device"
+      "device": "Serial device",
+      "close": "Close",
+      "refresh_key": "Refresh",
+      "port_key": "Port {num}"
     },
     "keybindings": {
       "title": "Keyboard Shortcuts — ESPTUI",
       "close": "Got it / Close (Esc)",
+      "close_key": "Close",
       "info": "[b cyan]Panel Navigation:[/] \n  [b yellow]Alt+1[/]         Focus Local & Board files panel\n  [b yellow]Alt+2[/]         Focus Code Editor\n  [b yellow]Alt+3[/]         Focus REPL Console\n\n[b cyan]File Operations:[/] \n  [b yellow]Ctrl+N[/]        Create [b green]New file[/]\n  [b yellow]F4[/]            [b green]Rename / Save as[/] (rename local or board file)\n  [b yellow]Ctrl+S[/]        [b green]Save[/] current file (locally or on board)\n  [b yellow]F5[/]            [b green]Run[/] code on board (Paste Mode)\n  [b yellow]F6[/]            [b green]Upload[/] file to board memory (ampy put)\n  [b yellow]F8[/]            [b red]Stop execution[/] (Ctrl+C interrupt on board)\n  [b yellow]F9[/]            Soft reset board (Ctrl+D)\n\n[b cyan]Board Files (ESP32):[/] \n  [b yellow]Left Click / Enter[/]  Open & edit file in editor\n  [b yellow]Right Click / m[/]     Options menu (Open, Rename, Delete)\n  [b yellow]Del (Delete)[/]       Delete selected file from board\n  [b yellow]F4[/]                 Rename selected file on board\n\n[b cyan]Tools & Views:[/] \n  [b yellow]Ctrl+C[/]        [b green]Copy[/] selection or console log to clipboard\n  [b yellow]F1[/] o [b yellow]?[/]        Show this help and shortcuts window\n  [b yellow]F2[/] or [b yellow]Ctrl+P[/]   Quick serial port selector\n  [b yellow]F3[/]            Switch language (English / Spanish)\n  [b yellow]F7[/]            Collapse / expand REPL console\n  [b yellow]F10[/]           Collapse / expand files panel\n  [b yellow]Ctrl+Q[/]        Quit IDE"
     },
     "file_name": {

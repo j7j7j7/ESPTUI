@@ -71,7 +71,7 @@ class AsciiSpinner(Static):
 
     def tick(self):
         frame = self.FRAMES[self.frame_index % len(self.FRAMES)]
-        self.update(f"{frame} Procesando...")
+        self.update(f"{frame} Processing...")
         self.frame_index += 1
 
 
@@ -123,7 +123,7 @@ class TerminalIDE(base.ESP32TUIApp):
     def on_mount(self):
         super().on_mount()
         self.query_one("#editor-title", Static).update(
-            self.t("editor.title", filename="sketch.py", default="Editor de código [Alt+2]: sketch.py")
+            self.t("editor.title", filename="sketch.py", default="Code editor [Alt+2]: sketch.py")
         )
 
     def get_busy_screen(self):
