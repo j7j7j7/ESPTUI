@@ -121,6 +121,7 @@ class PortSelectModal(ModalScreen):
     BINDINGS = [
         Binding("escape", "dismiss_modal", "Cerrar", priority=True),
         Binding("r", "refresh_ports", "Refrescar", priority=True),
+        Binding("f3", "cycle_language", "Idioma / Lang", priority=True),
         Binding("1", "pick_index(0)", "Puerto 1", priority=True),
         Binding("2", "pick_index(1)", "Puerto 2", priority=True),
         Binding("3", "pick_index(2)", "Puerto 3", priority=True),
@@ -185,6 +186,21 @@ class PortSelectModal(ModalScreen):
         elif event.button.id == "btn-cancel-port":
             self.dismiss(None)
 
+    def update_ui_texts(self):
+        try:
+            self.query_one("#port-title", Static).update(app_t(self, "modals.port_select.title", default="Seleccionar Puerto Serial (ESPTUI)"))
+            self.query_one("#port-subtitle", Static).update(app_t(self, "modals.port_select.subtitle", default="Presiona el número [1-9] del puerto o selecciónalo con Enter:"))
+            self.query_one("#btn-refresh-ports", Button).label = app_t(self, "modals.port_select.refresh", default="Refrescar (R)")
+            self.query_one("#btn-cancel-port", Button).label = app_t(self, "modals.port_select.cancel", default="Continuar sin conexión (Esc)")
+        except Exception:
+            pass
+
+    def action_cycle_language(self):
+        if hasattr(self.app, "action_cycle_language"):
+            self.app.action_cycle_language()
+        else:
+            self.update_ui_texts()
+
 
 class KeybindingsHelpModal(ModalScreen):
     """Modal con la lista de atajos de teclado del IDE."""
@@ -205,6 +221,7 @@ class KeybindingsHelpModal(ModalScreen):
     BINDINGS = [
         Binding("escape", "dismiss_modal", "Cerrar", priority=True),
         Binding("enter", "dismiss_modal", "Cerrar", priority=True),
+        Binding("f3", "cycle_language", "Idioma / Lang", priority=True),
     ]
 
     HELP_INFO = """
@@ -232,6 +249,7 @@ class KeybindingsHelpModal(ModalScreen):
   [b yellow]Ctrl+C[/]        [b green]Copiar[/] selección o registro de la consola al portapapeles
   [b yellow]F1[/] o [b yellow]?[/]        Mostrar esta ventana de ayuda y atajos
   [b yellow]F2[/] o [b yellow]Ctrl+P[/]   Selector rápido de puertos seriales
+  [b yellow]F3[/]            Cambiar idioma (English / Español)
   [b yellow]F7[/]            Colapsar / expandir consola REPL
   [b yellow]F10[/]           Colapsar / expandir panel de archivos
   [b yellow]Ctrl+Q[/]        Salir del IDE
@@ -245,6 +263,20 @@ class KeybindingsHelpModal(ModalScreen):
 
     def action_dismiss_modal(self):
         self.dismiss()
+
+    def update_ui_texts(self):
+        try:
+            self.query_one("#help-title", Static).update(app_t(self, "modals.keybindings.title", default="Atajos de Teclado — ESPTUI"))
+            self.query_one("#help-text", Static).update(app_t(self, "modals.keybindings.info", default=self.HELP_INFO.strip()))
+            self.query_one("#btn-close-help", Button).label = app_t(self, "modals.keybindings.close", default="Entendido / Cerrar (Esc)")
+        except Exception:
+            pass
+
+    def action_cycle_language(self):
+        if hasattr(self.app, "action_cycle_language"):
+            self.app.action_cycle_language()
+        else:
+            self.update_ui_texts()
 
     def on_button_pressed(self, event: Button.Pressed):
         if event.button.id == "btn-close-help":
@@ -465,9 +497,8 @@ class ESP32TUIApp(App):
     #editor-buttons Button { width: 1fr; min-width: 0; margin: 0 1; }
     #refresh-esp32 { width: 100%; margin-top: 1; }
     #top-bar {
-        height: 1;
+        height: 3;
         background: $surface;
-        dock: top;
         align-horizontal: right;
         align-vertical: middle;
         padding: 0 1;
@@ -475,16 +506,13 @@ class ESP32TUIApp(App):
     #top-bar-lang-label {
         color: $text-muted;
         margin-right: 1;
+        width: auto;
         height: 1;
+        margin-top: 1;
     }
     #lang-select {
-        width: 18;
-        height: 1;
-    }
-    #lang-select SelectCurrent {
-        border: none;
-        padding: 0 1;
-        height: 1;
+        width: 20;
+        height: 3;
     }
     """
     BINDINGS = [
@@ -511,7 +539,7 @@ class ESP32TUIApp(App):
         Binding("question_mark", "show_help", "Ayuda", priority=False, show=False),
         Binding("f2", "select_port", "Puertos", priority=True),
         Binding("ctrl+p", "select_port", "Puertos", priority=True, show=False),
-        Binding("f3", "cycle_language", "Idioma / Lang", priority=True, show=False),
+        Binding("f3", "cycle_language", "Idioma / Lang", priority=True, show=True),
 
         # Control de paneles y salida
         Binding("f7", "toggle_console", "Consola", priority=True, show=False),
@@ -597,12 +625,22 @@ class ESP32TUIApp(App):
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "lang-select" and event.value != Select.BLANK:
-            self.action_change_language(str(event.value))
+            if event.value != self.i18n.current_lang:
+                self.action_change_language(str(event.value))
 
     def action_change_language(self, lang_code: str):
         if not self.i18n.set_language(lang_code):
             return
         self.config["lang"] = lang_code
+        try:
+            cfg_path = Path.home() / ".esptui" / "config.json"
+            if cfg_path.exists():
+                cfg_data = json.loads(cfg_path.read_text(encoding="utf-8"))
+                if isinstance(cfg_data, dict):
+                    cfg_data["lang"] = lang_code
+                    cfg_path.write_text(json.dumps(cfg_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        except Exception:
+            pass
         try:
             select = self.query_one("#lang-select", Select)
             if select.value != lang_code:
@@ -687,6 +725,7 @@ class ESP32TUIApp(App):
             "send_soft_reset": self.t("footer.reset", default="Reset"),
             "show_help": self.t("footer.help", default="Help"),
             "select_port": self.t("footer.ports", default="Ports"),
+            "cycle_language": self.t("footer.language", default="Language"),
             "quit": self.t("footer.quit", default="Quit"),
         }
         for key, action in [
@@ -703,13 +742,23 @@ class ESP32TUIApp(App):
             ("f9", "send_soft_reset"),
             ("f1", "show_help"),
             ("f2", "select_port"),
+            ("f3", "cycle_language"),
             ("ctrl+q", "quit"),
         ]:
             desc = bindings_map.get(action)
             if desc:
                 self.bind(key, action, description=desc)
         try:
-            self.query_one(Footer).refresh(recompose=True)
+            footer = self.query_one(Footer)
+            if hasattr(footer, "refresh_bindings"):
+                footer.refresh_bindings()
+            footer.refresh(recompose=True)
+        except Exception:
+            pass
+
+        try:
+            if hasattr(self.screen, "update_ui_texts") and self.screen is not self:
+                self.screen.update_ui_texts()
         except Exception:
             pass
 

@@ -80,6 +80,7 @@ class I18nUITests(unittest.IsolatedAsyncioTestCase):
             config["lang"] = "en"
             app = TerminalIDE(config)
             async with app.run_test(size=(120, 40)) as pilot:
+                await pilot.pause()
                 # Should have top-bar and lang-select when > 1 language exists
                 self.assertTrue(app.i18n.has_multiple_languages)
                 select = app.query_one("#lang-select", Select)
@@ -107,6 +108,43 @@ class I18nUITests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(app.i18n.current_lang, "en")
                 self.assertEqual(select.value, "en")
                 self.assertIn("Code editor", str(editor_title.render()))
+
+    async def test_f3_cycles_language_on_modals(self):
+        with patch("main.find_port", side_effect=RuntimeError("No board in test")):
+            config = DEFAULTS.copy()
+            config["lang"] = "en"
+            app = TerminalIDE(config)
+            async with app.run_test(size=(120, 40)) as pilot:
+                await pilot.pause()
+                # Initial modal is PortSelectModal in AUTO mode
+                modal = app.screen
+                self.assertEqual(type(modal).__name__, "PortSelectModal")
+                self.assertEqual(modal.query_one("#port-title", Static).content, "Select Serial Port (ESPTUI)")
+
+                # Press F3 directly on PortSelectModal
+                await pilot.press("f3")
+                await pilot.pause()
+                self.assertEqual(app.i18n.current_lang, "es")
+                self.assertEqual(modal.query_one("#port-title", Static).content, "Seleccionar Puerto Serial (ESPTUI)")
+
+                # Dismiss modal
+                await pilot.press("escape")
+                await pilot.pause()
+
+                # Open KeybindingsHelpModal via F1
+                await pilot.press("f1")
+                await pilot.pause()
+                help_modal = app.screen
+                self.assertEqual(type(help_modal).__name__, "KeybindingsHelpModal")
+                self.assertEqual(help_modal.query_one("#help-title", Static).content, "Atajos de Teclado — ESPTUI")
+
+                # Press F3 on KeybindingsHelpModal to switch back to English
+                await pilot.press("f3")
+                await pilot.pause()
+                self.assertEqual(app.i18n.current_lang, "en")
+                self.assertEqual(help_modal.query_one("#help-title", Static).content, "Keyboard Shortcuts — ESPTUI")
+                await pilot.press("escape")
+                await pilot.pause()
 
     async def test_single_language_does_not_show_top_menu_switcher(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
