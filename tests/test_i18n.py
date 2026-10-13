@@ -210,6 +210,65 @@ class I18nUITests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(footer_descriptions.get("f6"), "Subir")
                 self.assertEqual(footer_descriptions.get("f8"), "Parar")
                 self.assertEqual(footer_descriptions.get("f3"), "Idioma")
+                self.assertEqual(footer_descriptions.get("f11"), "Paquetes")
+                self.assertEqual(footer_descriptions.get("f12"), "Flashear")
+
+    async def test_board_telemetry_and_packages_flasher_modals_ui(self):
+        with patch("main.find_port", side_effect=RuntimeError("No board in test")):
+            config = DEFAULTS.copy()
+            config["lang"] = "en"
+            app = TerminalIDE(config)
+            async with app.run_test(size=(120, 40)) as pilot:
+                await pilot.pause()
+                # Dismiss initial PortSelectModal
+                await pilot.press("escape")
+                await pilot.pause()
+
+                # Verify telemetry widget
+                stats = app.query_one("#board-stats", Static)
+                self.assertIn("RAM: --", str(stats.render()))
+
+                # Test F11 Package Manager modal
+                await pilot.press("f11")
+                await pilot.pause()
+                pkg_modal = app.screen
+                self.assertEqual(type(pkg_modal).__name__, "PackageManagerModal")
+                self.assertEqual(
+                    pkg_modal.query_one("#pkg-title", Static).content,
+                    "MicroPython Package Manager (mip)"
+                )
+
+                # Switch to Spanish via F3 inside modal
+                await pilot.press("f3")
+                await pilot.pause()
+                self.assertEqual(app.i18n.current_lang, "es")
+                self.assertEqual(
+                    pkg_modal.query_one("#pkg-title", Static).content,
+                    "Gestor de Paquetes MicroPython (mip)"
+                )
+                await pilot.press("escape")
+                await pilot.pause()
+
+                # Test F12 Firmware Flasher modal
+                await pilot.press("f12")
+                await pilot.pause()
+                flash_modal = app.screen
+                self.assertEqual(type(flash_modal).__name__, "FirmwareFlashModal")
+                self.assertEqual(
+                    flash_modal.query_one("#flasher-title", Static).content,
+                    "Flasheador de Firmware ESP32 (esptool)"
+                )
+
+                # Switch back to English via F3 inside modal
+                await pilot.press("f3")
+                await pilot.pause()
+                self.assertEqual(app.i18n.current_lang, "en")
+                self.assertEqual(
+                    flash_modal.query_one("#flasher-title", Static).content,
+                    "ESP32 Firmware Flasher (esptool)"
+                )
+                await pilot.press("escape")
+                await pilot.pause()
 
 
 if __name__ == "__main__":

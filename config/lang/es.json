@@ -11,7 +11,10 @@
     "board_disconnected": "ESP32: sin conectar",
     "board_connected": "ESP32: {port}",
     "refresh_board": "Refrescar placa",
-    "collapsed_label": "F\nI\nL\nE\nS"
+    "collapsed_label": "F\nI\nL\nE\nS",
+    "stats_disconnected": "RAM: -- | Flash: -- | CPU: --",
+    "stats_format": "RAM: {ram_free_kb} KB | Flash: {flash_free_mb} MB | CPU: {cpu_mhz} MHz",
+    "stats_loading": "Telemetría: leyendo estado de placa..."
   },
   "editor": {
     "title": "Editor de código [Alt+2]: {filename}",
@@ -44,12 +47,47 @@
     "reset": "Reiniciar",
     "help": "Ayuda",
     "ports": "Puertos",
+    "packages": "Paquetes",
+    "flash": "Flashear",
     "language": "Idioma",
     "quit": "Salir"
   },
   "modals": {
     "busy": {
       "processing": "Procesando en placa..."
+    },
+    "package_manager": {
+      "title": "Gestor de Paquetes MicroPython (mip)",
+      "placeholder": "Nombre del paquete (ej. ssd1306, bme280, dht)...",
+      "curated_title": "Paquetes Populares (Clic para seleccionar):",
+      "install_btn": "Instalar (Enter)",
+      "close_btn": "Cerrar (Esc)",
+      "status_ready": "Ingresa un nombre de paquete o elígelo de la lista.",
+      "status_downloading": "Descargando {pkg} desde micropython-lib...",
+      "status_uploading": "Subiendo archivos de {pkg} a /lib en la placa...",
+      "status_installed": "¡Paquete {pkg} instalado con éxito en /lib!",
+      "status_error": "Error al instalar paquete: {error}",
+      "no_board": "Conecta una placa antes de instalar paquetes."
+    },
+    "flasher": {
+      "title": "Flasheador de Firmware ESP32 (esptool)",
+      "port_label": "Puerto: {port}",
+      "baud_label": "Velocidad (baudios):",
+      "bin_path_placeholder": "Ruta al archivo .bin de MicroPython...",
+      "download_btn": "Descargar Firmware Oficial de ESP32",
+      "erase_first": "Borrar flash completa antes de escribir (Recomendado)",
+      "flash_btn": "Escribir Flash",
+      "erase_only_btn": "Solo Borrar Flash",
+      "close_btn": "Cerrar (Esc)",
+      "status_idle": "Selecciona el archivo .bin y haz clic en Escribir Flash.",
+      "status_downloading": "Descargando firmware oficial de MicroPython...",
+      "status_downloaded": "Firmware descargado en: {path}",
+      "status_erasing": "Borrando memoria flash en {port}...",
+      "status_flashing": "Escribiendo firmware en {port}...",
+      "status_done": "¡Flasheo completado con éxito! Reinicia la placa.",
+      "status_error": "Error de flasheo: {error}",
+      "file_not_found": "No se encontró el archivo de firmware: {path}",
+      "no_port": "Selecciona un puerto serial válido primero."
     },
     "port_select": {
       "title": "Seleccionar Puerto Serial (ESPTUI)",
@@ -66,7 +104,7 @@
       "title": "Atajos de Teclado — ESPTUI",
       "close": "Entendido / Cerrar (Esc)",
       "close_key": "Cerrar",
-      "info": "[b cyan]Navegación entre Paneles:[/] \n  [b yellow]Alt+1[/]         Enfocar panel de Archivos locales y placa\n  [b yellow]Alt+2[/]         Enfocar Editor de código\n  [b yellow]Alt+3[/]         Enfocar Consola REPL\n\n[b cyan]Operaciones de Archivos:[/] \n  [b yellow]Ctrl+N[/]        Crear [b green]Nuevo archivo[/]\n  [b yellow]F4[/]            [b green]Renombrar / Guardar como[/] (cambiar nombre de archivo o en placa)\n  [b yellow]Ctrl+S[/]        [b green]Guardar[/] archivo actual (localmente o en placa)\n  [b yellow]F5[/]            [b green]Ejecutar[/] código en la placa (Paste Mode)\n  [b yellow]F6[/]            [b green]Subir[/] archivo a la memoria de la placa (ampy put)\n  [b yellow]F8[/]            [b red]Parar ejecución[/] (Interrupción Ctrl+C en placa)\n  [b yellow]F9[/]            Reinicio suave de la placa (Ctrl+D)\n\n[b cyan]Archivos de la Placa (ESP32):[/] \n  [b yellow]Clic Izq / Enter[/]  Abrir y editar archivo en el editor\n  [b yellow]Clic Der / m[/]      Menú de opciones (Abrir, Renombrar, Eliminar)\n  [b yellow]Supr (Delete)[/]    Eliminar archivo seleccionado de la placa\n  [b yellow]F4[/]            Renombrar archivo seleccionado en la placa\n\n[b cyan]Herramientas y Vistas:[/] \n  [b yellow]Ctrl+C[/]        [b green]Copiar[/] selección o registro de la consola al portapapeles\n  [b yellow]F1[/] o [b yellow]?[/]        Mostrar esta ventana de ayuda y atajos\n  [b yellow]F2[/] o [b yellow]Ctrl+P[/]   Selector rápido de puertos seriales\n  [b yellow]F3[/]            Cambiar idioma de la interfaz (Inglés / Español)\n  [b yellow]F7[/]            Colapsar / expandir consola REPL\n  [b yellow]F10[/]           Colapsar / expandir panel de archivos\n  [b yellow]Ctrl+Q[/]        Salir del IDE"
+      "info": "[b cyan]Navegación entre Paneles:[/] \n  [b yellow]Alt+1[/]         Enfocar panel de Archivos locales y placa\n  [b yellow]Alt+2[/]         Enfocar Editor de código\n  [b yellow]Alt+3[/]         Enfocar Consola REPL\n\n[b cyan]Operaciones de Archivos:[/] \n  [b yellow]Ctrl+N[/]        Crear [b green]Nuevo archivo[/]\n  [b yellow]F4[/]            [b green]Renombrar / Guardar como[/] (cambiar nombre de archivo o en placa)\n  [b yellow]Ctrl+S[/]        [b green]Guardar[/] archivo actual (localmente o en placa)\n  [b yellow]F5[/]            [b green]Ejecutar[/] código en la placa (Paste Mode)\n  [b yellow]F6[/]            [b green]Subir[/] archivo a la memoria de la placa (ampy put)\n  [b yellow]F8[/]            [b red]Parar ejecución[/] (Interrupción Ctrl+C en placa)\n  [b yellow]F9[/]            Reinicio suave de la placa (Ctrl+D)\n\n[b cyan]Archivos de la Placa (ESP32):[/] \n  [b yellow]Clic Izq / Enter[/]  Abrir y editar archivo en el editor\n  [b yellow]Clic Der / m[/]      Menú de opciones (Abrir, Renombrar, Eliminar)\n  [b yellow]Supr (Delete)[/]    Eliminar archivo seleccionado de la placa\n  [b yellow]F4[/]            Renombrar archivo seleccionado en la placa\n\n[b cyan]Herramientas y Vistas:[/] \n  [b yellow]Ctrl+C[/]        [b green]Copiar[/] selección o registro de la consola al portapapeles\n  [b yellow]F1[/] o [b yellow]?[/]        Mostrar esta ventana de ayuda y atajos\n  [b yellow]F2[/] o [b yellow]Ctrl+P[/]   Selector rápido de puertos seriales\n  [b yellow]F3[/]            Cambiar idioma de la interfaz (Inglés / Español)\n  [b yellow]F7[/]            Colapsar / expandir consola REPL\n  [b yellow]F10[/]           Colapsar / expandir panel de archivos\n  [b yellow]F11[/]           Gestor de paquetes MicroPython (mip)\n  [b yellow]F12[/]           Flasheador de firmware ESP32 (esptool)\n  [b yellow]Ctrl+Q[/]        Salir del IDE"
     },
     "file_name": {
       "default_title": "Nombre del archivo",
@@ -123,6 +161,9 @@
     "clipboard_selected": "[PORTAPAPELES] Texto seleccionado copiado.",
     "clipboard_console": "[PORTAPAPELES] Consola copiada al portapapeles.",
     "clipboard_empty": "[PORTAPAPELES] No hay texto para copiar.",
-    "language_changed": "Idioma cambiado a: {lang}"
+    "language_changed": "Idioma cambiado a: {lang}",
+    "package_installed": "Paquete {pkg} instalado en /lib de la placa.",
+    "flashing_started": "Iniciando flasheo de firmware en {port}...",
+    "flashing_success": "Flasheo de firmware completado en {port}."
   }
 }

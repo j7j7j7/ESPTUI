@@ -5,12 +5,16 @@ Editor de código estándar, selección rápida de puertos seriales,
 navegación homogénea de paneles y edición de archivos locales y remotos.
 """
 
+import io
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
+import urllib.request
+import zipfile
 from dataclasses import replace
 from pathlib import Path
 
@@ -22,8 +26,8 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import (
-    Button, DirectoryTree, Footer, Header, Input, Label, ListItem,
-    ListView, LoadingIndicator, RichLog, Select, Static, TextArea,
+    Button, Checkbox, DirectoryTree, Footer, Header, Input, Label, ListItem,
+    ListView, LoadingIndicator, ProgressBar, RichLog, Select, Static, TextArea,
 )
 from i18n import get_i18n
 
@@ -275,6 +279,8 @@ class KeybindingsHelpModal(ModalScreen):
   [b yellow]F3[/]            Switch language (English / Spanish)
   [b yellow]F7[/]            Collapse / expand REPL console
   [b yellow]F10[/]           Collapse / expand files panel
+  [b yellow]F11[/]           MicroPython package manager (mip)
+  [b yellow]F12[/]           ESP32 firmware flasher (esptool)
   [b yellow]Ctrl+Q[/]        Quit IDE
 """
 
@@ -462,6 +468,515 @@ class ConfirmDeleteModal(ModalScreen):
         self.dismiss(event.button.id == "btn-confirm-delete")
 
 
+CURATED_PACKAGES = [
+    ("ssd1306", "I2C/SPI OLED display driver (128x64, 128x32)"),
+    ("bme280", "Bosch BME280 temperature, humidity & pressure sensor"),
+    ("dht", "DHT11 / DHT22 digital temperature & humidity sensor"),
+    ("neopixel", "WS2812 / NeoPixel addressable RGB LED strip driver"),
+    ("umqtt.simple", "Lightweight MQTT client for MicroPython"),
+    ("umqtt.robust", "Resilient MQTT client with automatic reconnection"),
+    ("urequests", "Lightweight HTTP requests client"),
+    ("microdot", "Minimal and fast web framework for MicroPython"),
+    ("logging", "Standard logging module implementation"),
+]
+
+OFFICIAL_ESP32_FIRMWARE_URL = "https://micropython.org/resources/firmware/ESP32_GENERIC-20241129-v1.24.1.bin"
+
+
+def download_micropython_package(pkg_name: str) -> list[tuple[str, bytes]]:
+    """Downloads package files from MicroPython mip index, micropython-lib, or PyPI.
+    Returns list of (relative_path_str, file_content_bytes)."""
+    headers = {"User-Agent": "ESPTUI/1.0 (Textual-MicroPython-IDE)"}
+    pkg_clean = pkg_name.strip()
+    files = []
+
+    # 1. Try official mip v2 index: https://micropython.org/pi/v2/package/py/{pkg}/latest.json
+    try:
+        url = f"https://micropython.org/pi/v2/package/py/{pkg_clean}/latest.json"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        hashes = data.get("hashes", [])
+        for rel_path, h in hashes:
+            short_h = h[:2]
+            f_url = f"https://micropython.org/pi/v2/file/{short_h}/{h}"
+            f_req = urllib.request.Request(f_url, headers=headers)
+            with urllib.request.urlopen(f_req, timeout=10) as f_resp:
+                files.append((rel_path, f_resp.read()))
+        if files:
+            return files
+    except Exception:
+        pass
+
+    # 2. Try raw GitHub from micropython-lib
+    for folder in ("python-ecosys", "micropython", "python-stdlib"):
+        for subpath in (f"{pkg_clean}/{pkg_clean}.py", f"{pkg_clean}.py"):
+            gh_url = f"https://raw.githubusercontent.com/micropython/micropython-lib/master/{folder}/{subpath}"
+            try:
+                gh_req = urllib.request.Request(gh_url, headers=headers)
+                with urllib.request.urlopen(gh_req, timeout=8) as gh_resp:
+                    content = gh_resp.read()
+                filename = subpath.split("/")[-1]
+                return [(filename, content)]
+            except Exception:
+                continue
+
+    # 3. Fallback: PyPI wheels or source archive
+    try:
+        pypi_url = f"https://pypi.org/pypi/{pkg_clean}/json"
+        p_req = urllib.request.Request(pypi_url, headers=headers)
+        with urllib.request.urlopen(p_req, timeout=8) as p_resp:
+            p_data = json.loads(p_resp.read().decode("utf-8"))
+        urls = p_data.get("urls", [])
+        wheel = next((u for u in urls if u.get("filename", "").endswith(".whl")), None)
+        if wheel:
+            w_req = urllib.request.Request(wheel["url"], headers=headers)
+            with urllib.request.urlopen(w_req, timeout=15) as w_resp:
+                w_bytes = w_resp.read()
+            with zipfile.ZipFile(io.BytesIO(w_bytes)) as z:
+                for name in z.namelist():
+                    if name.endswith(".py") and not name.startswith("__pycache__") and ".dist-info" not in name:
+                        files.append((name, z.read(name)))
+            if files:
+                return files
+    except Exception:
+        pass
+
+    raise RuntimeError(f"Package '{pkg_clean}' not found on micropython-lib index or PyPI.")
+
+
+class CuratedPackageItem(ListItem):
+    """Elemento para mostrar un paquete curado en el Package Manager."""
+    def __init__(self, name: str, desc: str):
+        clean_id = "curated-" + name.replace(".", "-")
+        super().__init__(Label(f"[b cyan]{name}[/] — {desc}"), id=clean_id)
+        self.pkg_name = name
+
+
+class PackageManagerModal(ModalScreen[bool]):
+    """Modal para buscar e instalar paquetes MicroPython en la placa."""
+    DEFAULT_CSS = """
+    PackageManagerModal { align: center middle; background: $background; }
+    #pkg-dialog {
+        width: 76;
+        height: auto;
+        max-height: 32;
+        border: heavy cyan;
+        background: $surface;
+        padding: 1 2;
+    }
+    #pkg-title { text-align: center; color: cyan; text-style: bold; margin-bottom: 1; }
+    #pkg-input-row { height: 3; margin-bottom: 1; }
+    #pkg-input { width: 1fr; margin-right: 1; }
+    #btn-pkg-install { width: 18; }
+    #pkg-curated-title { color: $text-muted; margin-bottom: 1; }
+    #pkg-list { height: 9; border: solid gray; margin-bottom: 1; }
+    #pkg-status { height: auto; min-height: 1; color: yellow; margin-bottom: 1; }
+    #pkg-actions { height: 3; align-horizontal: right; }
+    #btn-pkg-close { width: 18; }
+    """
+    BINDINGS = [
+        Binding("escape", "dismiss_modal", "Close", priority=True),
+        Binding("f3", "cycle_language", "Language", priority=True),
+    ]
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="pkg-dialog"):
+            yield Static(app_t(self, "modals.package_manager.title", default="MicroPython Package Manager (mip)"), id="pkg-title")
+            with Horizontal(id="pkg-input-row"):
+                yield Input(placeholder=app_t(self, "modals.package_manager.placeholder", default="Package name (e.g. ssd1306, bme280, dht)..."), id="pkg-input")
+                yield Button(app_t(self, "modals.package_manager.install_btn", default="Install (Enter)"), id="btn-pkg-install", variant="success")
+            yield Static(app_t(self, "modals.package_manager.curated_title", default="Popular Packages (Click to select):"), id="pkg-curated-title")
+            with ListView(id="pkg-list"):
+                for name, desc in CURATED_PACKAGES:
+                    yield CuratedPackageItem(name, desc)
+            yield Static(app_t(self, "modals.package_manager.status_ready", default="Enter package name or choose from list."), id="pkg-status")
+            with Horizontal(id="pkg-actions"):
+                yield Button(app_t(self, "modals.package_manager.close_btn", default="Close (Esc)"), id="btn-pkg-close", variant="primary")
+
+    def on_mount(self):
+        self.update_ui_texts()
+        self.query_one("#pkg-input", Input).focus()
+
+    def action_dismiss_modal(self):
+        self.dismiss(False)
+
+    def action_cycle_language(self):
+        if hasattr(self.app, "action_cycle_language"):
+            self.app.action_cycle_language()
+        else:
+            self.update_ui_texts()
+
+    def update_ui_texts(self):
+        try:
+            self.query_one("#pkg-title", Static).update(app_t(self, "modals.package_manager.title", default="MicroPython Package Manager (mip)"))
+            self.query_one("#pkg-input", Input).placeholder = app_t(self, "modals.package_manager.placeholder", default="Package name (e.g. ssd1306, bme280, dht)...")
+            self.query_one("#btn-pkg-install", Button).label = app_t(self, "modals.package_manager.install_btn", default="Install (Enter)")
+            self.query_one("#pkg-curated-title", Static).update(app_t(self, "modals.package_manager.curated_title", default="Popular Packages (Click to select):"))
+            self.query_one("#btn-pkg-close", Button).label = app_t(self, "modals.package_manager.close_btn", default="Close (Esc)")
+        except Exception:
+            pass
+
+    def on_list_view_selected(self, event: ListView.Selected):
+        if isinstance(event.item, CuratedPackageItem):
+            inp = self.query_one("#pkg-input", Input)
+            inp.value = event.item.pkg_name
+            inp.focus()
+
+    def on_input_submitted(self, event: Input.Submitted):
+        if event.input.id == "pkg-input":
+            self.start_install()
+
+    def on_button_pressed(self, event: Button.Pressed):
+        if event.button.id == "btn-pkg-install":
+            self.start_install()
+        elif event.button.id == "btn-pkg-close":
+            self.dismiss(False)
+
+    def set_status(self, text: str):
+        try:
+            self.query_one("#pkg-status", Static).update(text)
+        except Exception:
+            pass
+
+    def start_install(self):
+        pkg_name = self.query_one("#pkg-input", Input).value.strip()
+        if not pkg_name:
+            return
+        if not getattr(self.app, "port", None):
+            self.set_status(app_t(self, "modals.package_manager.no_board", default="Connect to a board first to install packages."))
+            return
+
+        btn = self.query_one("#btn-pkg-install", Button)
+        btn.disabled = True
+        self.set_status(app_t(self, "modals.package_manager.status_downloading", pkg=pkg_name, default=f"Downloading {pkg_name} from micropython-lib..."))
+
+        threading.Thread(target=self._install_worker, args=(pkg_name,), daemon=True).start()
+
+    def _install_worker(self, pkg_name: str):
+        try:
+            files = download_micropython_package(pkg_name)
+            self.app.call_from_thread(
+                self.set_status,
+                app_t(self, "modals.package_manager.status_uploading", pkg=pkg_name, default=f"Uploading {pkg_name} files to /lib on board...")
+            )
+            with self.app.serial_lock:
+                if self.app.ser and self.app.ser.is_open:
+                    try:
+                        self.app.ser.write(b"\x03\x03")
+                        time.sleep(0.15)
+                        self.app.ser.reset_input_buffer()
+                    except Exception:
+                        pass
+                    self.app.ser.close()
+                time.sleep(0.25)
+                try:
+                    try:
+                        self.app.ampy("mkdir", "lib")
+                    except Exception:
+                        pass
+
+                    for rel_path, content in files:
+                        clean_rel = rel_path.strip("/")
+                        parts = clean_rel.split("/")
+                        if len(parts) > 1:
+                            sub_dir = "lib"
+                            for part in parts[:-1]:
+                                sub_dir = f"{sub_dir}/{part}"
+                                try:
+                                    self.app.ampy("mkdir", sub_dir)
+                                except Exception:
+                                    pass
+
+                        with tempfile.TemporaryDirectory(prefix="esp32-mip-") as tmpdir:
+                            tmp_file = Path(tmpdir) / parts[-1]
+                            tmp_file.write_bytes(content)
+                            dest_path = f"lib/{clean_rel}"
+                            self.app.ampy("put", str(tmp_file), dest_path)
+                finally:
+                    if not self.app.stopping.is_set():
+                        time.sleep(0.2)
+                        try:
+                            self.app.open_serial()
+                        except Exception:
+                            pass
+
+            success_msg = app_t(self, "modals.package_manager.status_installed", pkg=pkg_name, default=f"Installed {pkg_name} successfully to /lib!")
+            self.app.call_from_thread(self.set_status, success_msg)
+            self.app.call_from_thread(
+                self.app.serial_log.write,
+                app_t(self, "messages.package_installed", pkg=pkg_name, default=f"Package installed to board: {pkg_name}")
+            )
+            self.app.call_from_thread(self.app.start_board_task, "list", None, None, True)
+        except Exception as error:
+            err_msg = app_t(self, "modals.package_manager.status_error", error=str(error), default=f"Installation error: {error}")
+            self.app.call_from_thread(self.set_status, err_msg)
+        finally:
+            def reenable():
+                try:
+                    self.query_one("#btn-pkg-install", Button).disabled = False
+                except Exception:
+                    pass
+            self.app.call_from_thread(reenable)
+
+
+class FirmwareFlashModal(ModalScreen[bool]):
+    """Modal para flashear firmware MicroPython en ESP32 usando esptool."""
+    DEFAULT_CSS = """
+    FirmwareFlashModal { align: center middle; background: $background; }
+    #flasher-dialog {
+        width: 78;
+        height: auto;
+        max-height: 34;
+        border: heavy cyan;
+        background: $surface;
+        padding: 1 2;
+    }
+    #flasher-title { text-align: center; color: cyan; text-style: bold; margin-bottom: 1; }
+    #flasher-port-row { height: 3; margin-bottom: 1; align-vertical: middle; }
+    #flasher-port-label { width: 1fr; color: yellow; }
+    #flasher-baud-label { width: auto; margin-right: 1; color: $text-muted; }
+    #flasher-baud-select { width: 18; }
+    #flasher-bin-row { height: 3; margin-bottom: 1; }
+    #flasher-bin-input { width: 1fr; }
+    #btn-flasher-download { width: auto; margin-bottom: 1; }
+    #flasher-erase-cb { margin-bottom: 1; }
+    #flasher-progress { width: 100%; margin-bottom: 1; }
+    #flasher-status { height: auto; min-height: 1; color: yellow; margin-bottom: 1; }
+    #flasher-actions { height: 3; }
+    #flasher-actions Button { margin-right: 1; }
+    """
+    BINDINGS = [
+        Binding("escape", "dismiss_modal", "Close", priority=True),
+        Binding("f3", "cycle_language", "Language", priority=True),
+    ]
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="flasher-dialog"):
+            yield Static(app_t(self, "modals.flasher.title", default="ESP32 Firmware Flasher (esptool)"), id="flasher-title")
+            with Horizontal(id="flasher-port-row"):
+                port_str = getattr(self.app, "port", None) or "None"
+                yield Static(app_t(self, "modals.flasher.port_label", port=port_str, default=f"Port: {port_str}"), id="flasher-port-label")
+                yield Static(app_t(self, "modals.flasher.baud_label", default="Baudrate:"), id="flasher-baud-label")
+                yield Select([("460800", "460800"), ("115200", "115200")], value="460800", allow_blank=False, id="flasher-baud-select")
+            with Horizontal(id="flasher-bin-row"):
+                yield Input(placeholder=app_t(self, "modals.flasher.bin_path_placeholder", default="Path to MicroPython firmware .bin file..."), id="flasher-bin-input")
+            yield Button(app_t(self, "modals.flasher.download_btn", default="Download Official ESP32 Firmware"), id="btn-flasher-download", variant="primary")
+            yield Checkbox(app_t(self, "modals.flasher.erase_first", default="Erase entire flash before writing (Recommended)"), value=True, id="flasher-erase-cb")
+            yield ProgressBar(id="flasher-progress", show_eta=False, total=100)
+            yield Static(app_t(self, "modals.flasher.status_idle", default="Select firmware .bin file and click Write Flash."), id="flasher-status")
+            with Horizontal(id="flasher-actions"):
+                yield Button(app_t(self, "modals.flasher.flash_btn", default="Write Flash"), id="btn-flasher-flash", variant="success")
+                yield Button(app_t(self, "modals.flasher.erase_only_btn", default="Erase Flash Only"), id="btn-flasher-erase", variant="warning")
+                yield Button(app_t(self, "modals.flasher.close_btn", default="Close (Esc)"), id="btn-flasher-close")
+
+    def on_mount(self):
+        self.update_ui_texts()
+
+    def action_dismiss_modal(self):
+        self.dismiss(False)
+
+    def action_cycle_language(self):
+        if hasattr(self.app, "action_cycle_language"):
+            self.app.action_cycle_language()
+        else:
+            self.update_ui_texts()
+
+    def update_ui_texts(self):
+        try:
+            self.query_one("#flasher-title", Static).update(app_t(self, "modals.flasher.title", default="ESP32 Firmware Flasher (esptool)"))
+            port_str = getattr(self.app, "port", None) or "None"
+            self.query_one("#flasher-port-label", Static).update(app_t(self, "modals.flasher.port_label", port=port_str, default=f"Port: {port_str}"))
+            self.query_one("#flasher-baud-label", Static).update(app_t(self, "modals.flasher.baud_label", default="Baudrate:"))
+            self.query_one("#flasher-bin-input", Input).placeholder = app_t(self, "modals.flasher.bin_path_placeholder", default="Path to MicroPython firmware .bin file...")
+            self.query_one("#btn-flasher-download", Button).label = app_t(self, "modals.flasher.download_btn", default="Download Official ESP32 Firmware")
+            self.query_one("#flasher-erase-cb", Checkbox).label = app_t(self, "modals.flasher.erase_first", default="Erase entire flash before writing (Recommended)")
+            self.query_one("#btn-flasher-flash", Button).label = app_t(self, "modals.flasher.flash_btn", default="Write Flash")
+            self.query_one("#btn-flasher-erase", Button).label = app_t(self, "modals.flasher.erase_only_btn", default="Erase Flash Only")
+            self.query_one("#btn-flasher-close", Button).label = app_t(self, "modals.flasher.close_btn", default="Close (Esc)")
+        except Exception:
+            pass
+
+    def set_status(self, text: str):
+        try:
+            self.query_one("#flasher-status", Static).update(text)
+        except Exception:
+            pass
+
+    def set_progress(self, percent: float):
+        try:
+            bar = self.query_one("#flasher-progress", ProgressBar)
+            bar.update(progress=percent)
+        except Exception:
+            pass
+
+    def set_buttons_disabled(self, disabled: bool):
+        for btn_id in ("#btn-flasher-download", "#btn-flasher-flash", "#btn-flasher-erase", "#btn-flasher-close"):
+            try:
+                self.query_one(btn_id, Button).disabled = disabled
+            except Exception:
+                pass
+
+    def on_button_pressed(self, event: Button.Pressed):
+        if event.button.id == "btn-flasher-download":
+            self.start_download_firmware()
+        elif event.button.id == "btn-flasher-flash":
+            self.start_flash(erase_only=False)
+        elif event.button.id == "btn-flasher-erase":
+            self.start_flash(erase_only=True)
+        elif event.button.id == "btn-flasher-close":
+            self.dismiss(False)
+
+    def start_download_firmware(self):
+        self.set_buttons_disabled(True)
+        self.set_status(app_t(self, "modals.flasher.status_downloading", default="Downloading MicroPython firmware..."))
+        self.set_progress(0)
+        threading.Thread(target=self._download_worker, daemon=True).start()
+
+    def _download_worker(self):
+        try:
+            fw_dir = Path.home() / ".esptui" / "firmware"
+            fw_dir.mkdir(parents=True, exist_ok=True)
+            dest_file = fw_dir / "ESP32_GENERIC-v1.24.1.bin"
+
+            req = urllib.request.Request(OFFICIAL_ESP32_FIRMWARE_URL, headers={"User-Agent": "ESPTUI/1.0"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                total_bytes = int(resp.headers.get("Content-Length", 0))
+                downloaded = 0
+                chunk_size = 65536
+                with open(dest_file, "wb") as f:
+                    while True:
+                        chunk = resp.read(chunk_size)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_bytes > 0:
+                            pct = round((downloaded / total_bytes) * 100, 1)
+                            self.app.call_from_thread(self.set_progress, pct)
+
+            self.app.call_from_thread(self.set_progress, 100)
+            def update_input():
+                try:
+                    self.query_one("#flasher-bin-input", Input).value = str(dest_file)
+                except Exception:
+                    pass
+            self.app.call_from_thread(update_input)
+            done_msg = app_t(self, "modals.flasher.status_downloaded", path=str(dest_file), default=f"Downloaded firmware to: {dest_file}")
+            self.app.call_from_thread(self.set_status, done_msg)
+        except Exception as error:
+            err_msg = app_t(self, "modals.flasher.status_error", error=str(error), default=f"Flashing error: {error}")
+            self.app.call_from_thread(self.set_status, err_msg)
+        finally:
+            self.app.call_from_thread(self.set_buttons_disabled, False)
+
+    def start_flash(self, erase_only: bool = False):
+        port = getattr(self.app, "port", None)
+        if not port:
+            self.set_status(app_t(self, "modals.flasher.no_port", default="Select a valid serial port first."))
+            return
+
+        bin_path = ""
+        if not erase_only:
+            bin_path = self.query_one("#flasher-bin-input", Input).value.strip()
+            if not bin_path or not Path(bin_path).is_file():
+                self.set_status(app_t(self, "modals.flasher.file_not_found", path=bin_path, default=f"Firmware .bin file not found: {bin_path}"))
+                return
+
+        erase_first = self.query_one("#flasher-erase-cb", Checkbox).value if not erase_only else False
+        baud = str(self.query_one("#flasher-baud-select", Select).value or "460800")
+
+        self.set_buttons_disabled(True)
+        self.set_progress(0)
+        threading.Thread(
+            target=self._flash_worker,
+            args=(port, baud, bin_path, erase_first, erase_only),
+            daemon=True
+        ).start()
+
+    def _flash_worker(self, port: str, baud: str, bin_path: str, erase_first: bool, erase_only: bool):
+        try:
+            self.app.call_from_thread(
+                self.app.serial_log.write,
+                app_t(self, "messages.flashing_started", port=port, default=f"Flashing firmware to {port}...")
+            )
+            with self.app.serial_lock:
+                if self.app.ser and self.app.ser.is_open:
+                    try:
+                        self.app.ser.write(b"\x03\x03")
+                        time.sleep(0.15)
+                    except Exception:
+                        pass
+                    self.app.ser.close()
+                time.sleep(0.3)
+
+                python_bin = sys.executable
+
+                if erase_first or erase_only:
+                    self.app.call_from_thread(
+                        self.set_status,
+                        app_t(self, "modals.flasher.status_erasing", port=port, default=f"Erasing flash on {port}...")
+                    )
+                    erase_cmd = [python_bin, "-m", "esptool", "--port", port, "--baud", baud, "erase_flash"]
+                    proc = subprocess.run(erase_cmd, capture_output=True, text=True, timeout=60)
+                    if proc.returncode != 0:
+                        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "esptool erase_flash failed")
+                    self.app.call_from_thread(self.set_progress, 50 if not erase_only else 100)
+
+                if not erase_only:
+                    self.app.call_from_thread(
+                        self.set_status,
+                        app_t(self, "modals.flasher.status_flashing", port=port, default=f"Writing firmware to {port}...")
+                    )
+                    flash_cmd = [
+                        python_bin, "-m", "esptool",
+                        "--chip", "esp32",
+                        "--port", port,
+                        "--baud", baud,
+                        "write_flash",
+                        "-z", "0x1000",
+                        str(bin_path)
+                    ]
+                    proc = subprocess.Popen(flash_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                    for line in iter(proc.stdout.readline, ''):
+                        if not line:
+                            break
+                        if "%" in line:
+                            try:
+                                pct_part = line.split("(")[-1].split("%")[0].strip()
+                                pct = float(pct_part)
+                                if erase_first:
+                                    scaled = 50 + (pct * 0.5)
+                                    self.app.call_from_thread(self.set_progress, scaled)
+                                else:
+                                    self.app.call_from_thread(self.set_progress, pct)
+                            except Exception:
+                                pass
+                    proc.wait(timeout=120)
+                    if proc.returncode != 0:
+                        raise RuntimeError(f"esptool write_flash exited with code {proc.returncode}")
+
+                self.app.call_from_thread(self.set_progress, 100)
+                done_msg = app_t(self, "modals.flasher.status_done", default="Flashing completed successfully! Reset board to start MicroPython.")
+                self.app.call_from_thread(self.set_status, done_msg)
+                self.app.call_from_thread(
+                    self.app.serial_log.write,
+                    app_t(self, "messages.flashing_success", port=port, default=f"Firmware flashed successfully to {port}.")
+                )
+        except Exception as error:
+            err_msg = app_t(self, "modals.flasher.status_error", error=str(error), default=f"Flashing error: {error}")
+            self.app.call_from_thread(self.set_status, err_msg)
+        finally:
+            if not self.app.stopping.is_set():
+                time.sleep(0.3)
+                try:
+                    self.app.open_serial()
+                except Exception:
+                    pass
+            self.app.call_from_thread(self.set_buttons_disabled, False)
+            self.app.call_from_thread(self.app.start_board_task, "list", None, None, True)
+
+
 class RemoteFileItem(ListItem):
     """Elemento de la lista de archivos de la placa con soporte para clic derecho."""
     def __init__(self, filename: str):
@@ -547,6 +1062,14 @@ class ESP32TUIApp(App):
         width: 20;
         height: 3;
     }
+    #board-stats {
+        height: auto;
+        color: $text-muted;
+        background: $surface;
+        padding: 0 1;
+        margin-bottom: 1;
+        text-align: center;
+    }
     """
     BINDINGS = [
         # Panel navigation (hidden from footer for space)
@@ -573,6 +1096,8 @@ class ESP32TUIApp(App):
         Binding("f2", "select_port", "Ports", priority=True),
         Binding("ctrl+p", "select_port", "Ports", priority=True, show=False),
         Binding("f3", "cycle_language", "Language", priority=True, show=True),
+        Binding("f11", "open_package_manager", "Packages", priority=True),
+        Binding("f12", "open_firmware_flasher", "Flash", priority=True),
 
         # Panels and quit
         Binding("f7", "toggle_console", "Console", priority=True, show=False),
@@ -618,6 +1143,7 @@ class ESP32TUIApp(App):
                 with Vertical(classes="panel-content hideable"):
                     yield DirectoryTree(str(self.user_home), id="local-files")
                     yield Static(self.t("sidebar.board_disconnected", default="ESP32: disconnected"), id="board-title", classes="title")
+                    yield Static(self.t("sidebar.stats_disconnected", default="RAM: -- | Flash: -- | CPU: --"), id="board-stats")
                     yield ListView(id="esp32-files")
                     yield Button(self.t("sidebar.refresh_board", default="Refresh board"), id="refresh-esp32")
                 yield Static(self.t("sidebar.collapsed_label", default="F\nI\nL\nE\nS"), classes="collapsed-label")
@@ -710,9 +1236,18 @@ class ESP32TUIApp(App):
                 self.query_one("#board-title", Static).update(
                     self.t("sidebar.board_connected", port=self.port, default=f"ESP32: {self.port}")
                 )
+                if hasattr(self, "board_stats_text") and self.board_stats_text:
+                    self.query_one("#board-stats", Static).update(self.board_stats_text)
+                else:
+                    self.query_one("#board-stats", Static).update(
+                        self.t("sidebar.stats_loading", default="Telemetry: reading board stats...")
+                    )
             else:
                 self.query_one("#board-title", Static).update(
                     self.t("sidebar.board_disconnected", default="ESP32: disconnected")
+                )
+                self.query_one("#board-stats", Static).update(
+                    self.t("sidebar.stats_disconnected", default="RAM: -- | Flash: -- | CPU: --")
                 )
             self.query_one("#refresh-esp32", Button).label = self.t("sidebar.refresh_board", default="Refresh board")
         except Exception:
@@ -759,6 +1294,8 @@ class ESP32TUIApp(App):
             "f1": self.t("footer.help", default="Help"),
             "f2": self.t("footer.ports", default="Ports"),
             "f3": self.t("footer.language", default="Language"),
+            "f11": self.t("footer.packages", default="Packages"),
+            "f12": self.t("footer.flash", default="Flash"),
             "ctrl+q": self.t("footer.quit", default="Quit"),
         }
         for target in [self, self.screen]:
@@ -783,6 +1320,12 @@ class ESP32TUIApp(App):
 
     def action_show_help(self):
         self.push_screen(KeybindingsHelpModal())
+
+    def action_open_package_manager(self):
+        self.push_screen(PackageManagerModal())
+
+    def action_open_firmware_flasher(self):
+        self.push_screen(FirmwareFlashModal())
 
     def action_select_port(self):
         if isinstance(self.screen, PortSelectModal):
@@ -976,6 +1519,37 @@ class ESP32TUIApp(App):
                                 if self.is_remote_file and self.current_remote_file == old_remote:
                                     self.current_remote_file = new_remote
                         files = [f for f in self.ampy("ls").splitlines() if f.strip() and f.strip() != "/"]
+                        stats_text = None
+                        if operation == "list":
+                            try:
+                                stats_script = "import gc,os,machine\ngc.collect()\nprint('__STATS__:'+str(gc.mem_free())+':'+str(os.statvfs('/')[0]*os.statvfs('/')[3])+':'+str(machine.freq()))"
+                                with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as tf:
+                                    tf.write(stats_script)
+                                    tf_path = tf.name
+                                try:
+                                    raw_stats = self.ampy("run", tf_path)
+                                    for line in raw_stats.splitlines():
+                                        if line.startswith("__STATS__:"):
+                                            parts = line.strip().split(":")
+                                            if len(parts) == 4:
+                                                ram_b = int(parts[1])
+                                                flash_b = int(parts[2])
+                                                freq_hz = int(parts[3])
+                                                ram_kb = round(ram_b / 1024, 1)
+                                                flash_mb = round(flash_b / (1024 * 1024), 2)
+                                                cpu_mhz = int(freq_hz // 1000000)
+                                                stats_text = self.t(
+                                                    "sidebar.stats_format",
+                                                    ram_free_kb=ram_kb,
+                                                    flash_free_mb=flash_mb,
+                                                    cpu_mhz=cpu_mhz,
+                                                    default=f"RAM: {ram_kb} KB | Flash: {flash_mb} MB | CPU: {cpu_mhz} MHz",
+                                                )
+                                                break
+                                finally:
+                                    Path(tf_path).unlink(missing_ok=True)
+                            except Exception:
+                                pass
                     finally:
                         if not self.stopping.is_set():
                             time.sleep(0.25)
@@ -989,12 +1563,18 @@ class ESP32TUIApp(App):
         finally:
             if not self.stopping.is_set():
                 try:
-                    self.call_from_thread(self.finish_board_task, files, messages, loaded_remote)
+                    self.call_from_thread(self.finish_board_task, files, messages, loaded_remote, stats_text)
                 except RuntimeError:
                     pass
 
-    async def finish_board_task(self, files, messages, loaded_remote=None):
+    async def finish_board_task(self, files, messages, loaded_remote=None, stats_text=None):
         try:
+            if stats_text:
+                self.board_stats_text = stats_text
+                try:
+                    self.query_one("#board-stats", Static).update(stats_text)
+                except Exception:
+                    pass
             if files is not None:
                 await self.remote_files.clear()
                 items = [

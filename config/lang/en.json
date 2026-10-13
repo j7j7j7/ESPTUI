@@ -11,7 +11,10 @@
     "board_disconnected": "ESP32: disconnected",
     "board_connected": "ESP32: {port}",
     "refresh_board": "Refresh board",
-    "collapsed_label": "F\nI\nL\nE\nS"
+    "collapsed_label": "F\nI\nL\nE\nS",
+    "stats_disconnected": "RAM: -- | Flash: -- | CPU: --",
+    "stats_format": "RAM: {ram_free_kb} KB | Flash: {flash_free_mb} MB | CPU: {cpu_mhz} MHz",
+    "stats_loading": "Telemetry: reading board stats..."
   },
   "editor": {
     "title": "Code editor [Alt+2]: {filename}",
@@ -44,12 +47,47 @@
     "reset": "Reset",
     "help": "Help",
     "ports": "Ports",
+    "packages": "Packages",
+    "flash": "Flash",
     "language": "Language",
     "quit": "Quit"
   },
   "modals": {
     "busy": {
       "processing": "Processing on board..."
+    },
+    "package_manager": {
+      "title": "MicroPython Package Manager (mip)",
+      "placeholder": "Package name (e.g. ssd1306, bme280, dht)...",
+      "curated_title": "Popular Packages (Click to select):",
+      "install_btn": "Install (Enter)",
+      "close_btn": "Close (Esc)",
+      "status_ready": "Enter package name or choose from list.",
+      "status_downloading": "Downloading {pkg} from micropython-lib...",
+      "status_uploading": "Uploading {pkg} files to /lib on board...",
+      "status_installed": "Installed {pkg} successfully to /lib!",
+      "status_error": "Installation error: {error}",
+      "no_board": "Connect to a board first to install packages."
+    },
+    "flasher": {
+      "title": "ESP32 Firmware Flasher (esptool)",
+      "port_label": "Port: {port}",
+      "baud_label": "Baudrate:",
+      "bin_path_placeholder": "Path to MicroPython firmware .bin file...",
+      "download_btn": "Download Official ESP32 Firmware",
+      "erase_first": "Erase entire flash before writing (Recommended)",
+      "flash_btn": "Write Flash",
+      "erase_only_btn": "Erase Flash Only",
+      "close_btn": "Close (Esc)",
+      "status_idle": "Select firmware .bin file and click Write Flash.",
+      "status_downloading": "Downloading MicroPython firmware...",
+      "status_downloaded": "Downloaded firmware to: {path}",
+      "status_erasing": "Erasing flash on {port}...",
+      "status_flashing": "Writing firmware to {port}...",
+      "status_done": "Flashing completed successfully! Reset board to start MicroPython.",
+      "status_error": "Flashing error: {error}",
+      "file_not_found": "Firmware .bin file not found: {path}",
+      "no_port": "Select a valid serial port first."
     },
     "port_select": {
       "title": "Select Serial Port (ESPTUI)",
@@ -66,7 +104,7 @@
       "title": "Keyboard Shortcuts — ESPTUI",
       "close": "Got it / Close (Esc)",
       "close_key": "Close",
-      "info": "[b cyan]Panel Navigation:[/] \n  [b yellow]Alt+1[/]         Focus Local & Board files panel\n  [b yellow]Alt+2[/]         Focus Code Editor\n  [b yellow]Alt+3[/]         Focus REPL Console\n\n[b cyan]File Operations:[/] \n  [b yellow]Ctrl+N[/]        Create [b green]New file[/]\n  [b yellow]F4[/]            [b green]Rename / Save as[/] (rename local or board file)\n  [b yellow]Ctrl+S[/]        [b green]Save[/] current file (locally or on board)\n  [b yellow]F5[/]            [b green]Run[/] code on board (Paste Mode)\n  [b yellow]F6[/]            [b green]Upload[/] file to board memory (ampy put)\n  [b yellow]F8[/]            [b red]Stop execution[/] (Ctrl+C interrupt on board)\n  [b yellow]F9[/]            Soft reset board (Ctrl+D)\n\n[b cyan]Board Files (ESP32):[/] \n  [b yellow]Left Click / Enter[/]  Open & edit file in editor\n  [b yellow]Right Click / m[/]     Options menu (Open, Rename, Delete)\n  [b yellow]Del (Delete)[/]       Delete selected file from board\n  [b yellow]F4[/]                 Rename selected file on board\n\n[b cyan]Tools & Views:[/] \n  [b yellow]Ctrl+C[/]        [b green]Copy[/] selection or console log to clipboard\n  [b yellow]F1[/] o [b yellow]?[/]        Show this help and shortcuts window\n  [b yellow]F2[/] or [b yellow]Ctrl+P[/]   Quick serial port selector\n  [b yellow]F3[/]            Switch language (English / Spanish)\n  [b yellow]F7[/]            Collapse / expand REPL console\n  [b yellow]F10[/]           Collapse / expand files panel\n  [b yellow]Ctrl+Q[/]        Quit IDE"
+      "info": "[b cyan]Panel Navigation:[/] \n  [b yellow]Alt+1[/]         Focus Local & Board files panel\n  [b yellow]Alt+2[/]         Focus Code Editor\n  [b yellow]Alt+3[/]         Focus REPL Console\n\n[b cyan]File Operations:[/] \n  [b yellow]Ctrl+N[/]        Create [b green]New file[/]\n  [b yellow]F4[/]            [b green]Rename / Save as[/] (rename local or board file)\n  [b yellow]Ctrl+S[/]        [b green]Save[/] current file (locally or on board)\n  [b yellow]F5[/]            [b green]Run[/] code on board (Paste Mode)\n  [b yellow]F6[/]            [b green]Upload[/] file to board memory (ampy put)\n  [b yellow]F8[/]            [b red]Stop execution[/] (Ctrl+C interrupt on board)\n  [b yellow]F9[/]            Soft reset board (Ctrl+D)\n\n[b cyan]Board Files (ESP32):[/] \n  [b yellow]Left Click / Enter[/]  Open & edit file in editor\n  [b yellow]Right Click / m[/]     Options menu (Open, Rename, Delete)\n  [b yellow]Del (Delete)[/]       Delete selected file from board\n  [b yellow]F4[/]                 Rename selected file on board\n\n[b cyan]Tools & Views:[/] \n  [b yellow]Ctrl+C[/]        [b green]Copy[/] selection or console log to clipboard\n  [b yellow]F1[/] o [b yellow]?[/]        Show this help and shortcuts window\n  [b yellow]F2[/] or [b yellow]Ctrl+P[/]   Quick serial port selector\n  [b yellow]F3[/]            Switch language (English / Spanish)\n  [b yellow]F7[/]            Collapse / expand REPL console\n  [b yellow]F10[/]           Collapse / expand files panel\n  [b yellow]F11[/]           MicroPython package manager (mip)\n  [b yellow]F12[/]           ESP32 firmware flasher (esptool)\n  [b yellow]Ctrl+Q[/]        Quit IDE"
     },
     "file_name": {
       "default_title": "File Name",
@@ -123,6 +161,9 @@
     "clipboard_selected": "[CLIPBOARD] Selected text copied.",
     "clipboard_console": "[CLIPBOARD] Console copied to clipboard.",
     "clipboard_empty": "[CLIPBOARD] No text to copy.",
-    "language_changed": "Language changed to: {lang}"
+    "language_changed": "Language changed to: {lang}",
+    "package_installed": "Package {pkg} installed to /lib on board.",
+    "flashing_started": "Starting firmware flash on {port}...",
+    "flashing_success": "Firmware flash completed on {port}."
   }
 }
