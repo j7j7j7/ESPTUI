@@ -62,13 +62,15 @@ step() {
 }
 ref=${ESPTUI_REF:-${TUIESP32_REF:-main}}
 if ! step "Descargando ESPTUI" fetch "https://github.com/j7j7j7/ESPTUI/archive/refs/heads/$ref.tar.gz" "$work/source.tar.gz"; then
-    if ! step "Descargando ESPTUI (fallback)" fetch "https://api.github.com/repos/j7j7j7/ESPTUI/zipball/$ref" "$work/source.tar.gz"; then
+    if ! step "Descargando ESPTUI (fallback)" fetch "https://api.github.com/repos/j7j7j7/ESPTUI/tarball/$ref" "$work/source.tar.gz"; then
         echo "No se pudo descargar el repositorio ESPTUI." >&2
         exit 1
     fi
 fi
 if command -v uv >/dev/null 2>&1; then
     uv_bin=$(command -v uv)
+elif [ -x "$HOME/.local/bin/uv" ]; then
+    uv_bin="$HOME/.local/bin/uv"
 else
     step "Descargando instalador de uv" fetch "https://astral.sh/uv/install.sh" "$work/uv.sh"
     step "Instalando uv" env UV_INSTALL_DIR="$HOME/.local/bin" sh "$work/uv.sh"
@@ -79,5 +81,7 @@ step "Preparando Python y dependencias" env UV_PYTHON_DOWNLOADS=automatic "$uv_b
 step "Configurando PATH" "$uv_bin" tool update-shell
 bin_dir=$("$uv_bin" tool dir --bin)
 "$bin_dir/esptui" --version
-printf '\nListo. Reabre la terminal y ejecuta: esptui (o tuiesp32)\n'
+printf '\nListo. Si el comando no se reconoce de inmediato en esta misma ventana:\n'
+printf '  source ~/.bashrc  (o abre una terminal nueva)\n'
+printf 'Luego ejecuta: esptui (o tuiesp32)\n'
 printf 'Actualiza repitiendo el instalador. Desinstala con: uv tool uninstall esptui\n'
