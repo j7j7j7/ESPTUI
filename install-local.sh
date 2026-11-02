@@ -14,7 +14,7 @@ fi
 # Obtiene la carpeta del script, incluso cuando se ejecuta desde otra carpeta.
 src=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # Comprueba los archivos necesarios para construir e instalar el paquete.
-for required in pyproject.toml main.py esptui.py tuiesp32.py README.md; do
+for required in pyproject.toml main.py esptui.py tuiesp32.py README.md 99-esptui.rules; do
     [[ -f "$src/$required" ]] || { printf 'Falta %s junto al instalador.\n' "$required" >&2; exit 1; }
 done
 # El delimitador entre comillas conserva literalmente el logo ASCII.
@@ -119,6 +119,32 @@ fi
 bin_dir=$("$uv_bin" tool dir --bin)
 # Verifica que el comando instalado pueda iniciar y mostrar su version.
 step 'Verificando comando' "$bin_dir/esptui" --version
+
+# Configura reglas udev en Linux para acceso a ESP32 y puertos seriales sin root.
+configurar_udev() {
+    local rules_src="$src/99-esptui.rules"
+    local rules_dest="/etc/udev/rules.d/99-esptui.rules"
+
+    [[ -f "$rules_src" ]] || return 0
+    if [[ -f "$rules_dest" ]] && cmp -s "$rules_src" "$rules_dest" 2>/dev/null; then
+        return 0
+    fi
+
+    printf '\nConfigurando reglas udev para acceso a ESP32 (sin root)...\n'
+    if command -v sudo >/dev/null 2>&1; then
+        if sudo cp "$rules_src" "$rules_dest" && sudo udevadm control --reload-rules && sudo udevadm trigger; then
+            printf '[OK] Reglas udev instaladas en %s\n' "$rules_dest"
+        else
+            printf '[AVISO] No se pudieron aplicar las reglas udev automáticamente.\n' >&2
+            printf 'Ejecuta manualmente:\n' >&2
+            printf '  sudo cp "%s" "%s" && sudo udevadm control --reload-rules && sudo udevadm trigger\n' "$rules_src" "$rules_dest" >&2
+        fi
+    else
+        printf '[AVISO] sudo no disponible. Copia manualmente las reglas a %s\n' "$rules_dest" >&2
+    fi
+}
+configurar_udev
+
 # Informa las formas de abrir y reinstalar la app sin lanzarla automaticamente.
 printf '\nInstalacion lista. Reabre la terminal y ejecuta: esptui (o tuiesp32)\n'
 printf 'Sin reabrir la terminal: bash run-local.sh\n'

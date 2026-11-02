@@ -1,0 +1,22 @@
+# 99-esptui.rules
+# Reglas udev para permitir acceso de usuario local (uaccess) a microcontroladores ESP32 y chips seriales USB comunes.
+
+# CP210x (Silicon Labs)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", MODE="0666", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="10c4", MODE="0666", TAG+="uaccess"
+
+# CH340 / CH341 (QinHeng)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", MODE="0666", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="1a86", MODE="0666", TAG+="uaccess"
+
+# FTDI (FT232 / FT2232 / FT4232)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", MODE="0666", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", MODE="0666", TAG+="uaccess"
+
+# Espressif chips nativos USB / JTAG / CDC (ESP32-S2, ESP32-S3, ESP32-C3, ESP32-C6, etc.)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", MODE="0666", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="303a", MODE="0666", TAG+="uaccess"
+
+# Raspberry Pi Pico / RP2040
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", MODE="0666", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="2e8a", MODE="0666", TAG+="uaccess"
